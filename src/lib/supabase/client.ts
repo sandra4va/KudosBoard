@@ -6,7 +6,10 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = (typeof window !== 'undefined' && window.KUDOSBOARD_ENV?.SUPABASE_URL) || '';
 const supabaseAnonKey = (typeof window !== 'undefined' && window.KUDOSBOARD_ENV?.SUPABASE_ANON_KEY) || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+// Fallback for local development using environment variables (if bundled)
+const supabaseAnonKeyEnv = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabaseAnonKeyFinal = supabaseAnonKey || supabaseAnonKeyEnv;
+
 
 export const supabase = (supabaseUrl && supabaseAnonKey)
   ? createClient(supabaseUrl, supabaseAnonKey)
