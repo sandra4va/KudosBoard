@@ -12,6 +12,34 @@
 
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+    <script type="text/babel">
+      // -----------------------------------------------------
+      // Real‑time subscription setup (Step 2‑5)
+      // -----------------------------------------------------
+      const boardId = new URLSearchParams(window.location.search).get('board') || 'default-board-id';
+
+      function logRealtime(msg) { console.info(`[Realtime] ${msg}`); }
+
+      if (supabase) {
+        const unsubscribe = subscribeToSupabaseBoard(boardId, (payload) => {
+          const { eventType, new: newRec, old: oldRec, table } = payload;
+          // Simple UI update hooks – replace with your actual state handlers
+          if (eventType === 'INSERT') {
+            // Example: add new post/reaction/reply to local arrays if they exist
+            // You may need to call your existing render functions here
+            logRealtime(`INSERT on ${table}`);
+          } else if (eventType === 'UPDATE') {
+            logRealtime(`UPDATE on ${table}`);
+          } else if (eventType === 'DELETE') {
+            logRealtime(`DELETE on ${table}`);
+          }
+        });
+        window.addEventListener('beforeunload', () => unsubscribe());
+        logRealtime(`Subscribed to board ${boardId}`);
+      } else {
+        logRealtime('Supabase client not available – realtime disabled');
+      }
+    </script>
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -48,22 +76,302 @@
       }
     }
   </script>
+    <script type="text/babel">
+      // -----------------------------------------------------
+      // Real‑time subscription setup (Step 2‑5)
+      // -----------------------------------------------------
+      const boardId = new URLSearchParams(window.location.search).get('board') || 'default-board-id';
+
+      function logRealtime(msg) { console.info(`[Realtime] ${msg}`); }
+
+      if (supabase) {
+        const unsubscribe = subscribeToSupabaseBoard(boardId, (payload) => {
+          const { eventType, new: newRec, old: oldRec, table } = payload;
+          // Simple UI update hooks – replace with your actual state handlers
+          if (eventType === 'INSERT') {
+            // Example: add new post/reaction/reply to local arrays if they exist
+            // You may need to call your existing render functions here
+            logRealtime(`INSERT on ${table}`);
+          } else if (eventType === 'UPDATE') {
+            logRealtime(`UPDATE on ${table}`);
+          } else if (eventType === 'DELETE') {
+            logRealtime(`DELETE on ${table}`);
+          }
+        });
+        window.addEventListener('beforeunload', () => unsubscribe());
+        logRealtime(`Subscribed to board ${boardId}`);
+      } else {
+        logRealtime('Supabase client not available – realtime disabled');
+      }
+    </script>
 
   <!-- React 18 & ReactDOM -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script type="text/babel">
+      // -----------------------------------------------------
+      // Real‑time subscription setup (Step 2‑5)
+      // -----------------------------------------------------
+      const boardId = new URLSearchParams(window.location.search).get('board') || 'default-board-id';
+
+      function logRealtime(msg) { console.info(`[Realtime] ${msg}`); }
+
+      if (supabase) {
+        const unsubscribe = subscribeToSupabaseBoard(boardId, (payload) => {
+          const { eventType, new: newRec, old: oldRec, table } = payload;
+          // Simple UI update hooks – replace with your actual state handlers
+          if (eventType === 'INSERT') {
+            // Example: add new post/reaction/reply to local arrays if they exist
+            // You may need to call your existing render functions here
+            logRealtime(`INSERT on ${table}`);
+          } else if (eventType === 'UPDATE') {
+            logRealtime(`UPDATE on ${table}`);
+          } else if (eventType === 'DELETE') {
+            logRealtime(`DELETE on ${table}`);
+          }
+        });
+        window.addEventListener('beforeunload', () => unsubscribe());
+        logRealtime(`Subscribed to board ${boardId}`);
+      } else {
+        logRealtime('Supabase client not available – realtime disabled');
+      }
+    </script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script type="text/babel">
+      // -----------------------------------------------------
+      // Real‑time subscription setup (Step 2‑5)
+      // -----------------------------------------------------
+      const boardId = new URLSearchParams(window.location.search).get('board') || 'default-board-id';
+
+      function logRealtime(msg) { console.info(`[Realtime] ${msg}`); }
+
+      if (supabase) {
+        const unsubscribe = subscribeToSupabaseBoard(boardId, (payload) => {
+          const { eventType, new: newRec, old: oldRec, table } = payload;
+          // Simple UI update hooks – replace with your actual state handlers
+          if (eventType === 'INSERT') {
+            // Example: add new post/reaction/reply to local arrays if they exist
+            // You may need to call your existing render functions here
+            logRealtime(`INSERT on ${table}`);
+          } else if (eventType === 'UPDATE') {
+            logRealtime(`UPDATE on ${table}`);
+          } else if (eventType === 'DELETE') {
+            logRealtime(`DELETE on ${table}`);
+          }
+        });
+        window.addEventListener('beforeunload', () => unsubscribe());
+        logRealtime(`Subscribed to board ${boardId}`);
+      } else {
+        logRealtime('Supabase client not available – realtime disabled');
+      }
+    </script>
   <!-- Babel Standalone for JSX compilation in browser -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script type="text/babel">
+      // -----------------------------------------------------
+      // Real‑time subscription setup (Step 2‑5)
+      // -----------------------------------------------------
+      const boardId = new URLSearchParams(window.location.search).get('board') || 'default-board-id';
+
+      function logRealtime(msg) { console.info(`[Realtime] ${msg}`); }
+
+      if (supabase) {
+        const unsubscribe = subscribeToSupabaseBoard(boardId, (payload) => {
+          const { eventType, new: newRec, old: oldRec, table } = payload;
+          // Simple UI update hooks – replace with your actual state handlers
+          if (eventType === 'INSERT') {
+            // Example: add new post/reaction/reply to local arrays if they exist
+            // You may need to call your existing render functions here
+            logRealtime(`INSERT on ${table}`);
+          } else if (eventType === 'UPDATE') {
+            logRealtime(`UPDATE on ${table}`);
+          } else if (eventType === 'DELETE') {
+            logRealtime(`DELETE on ${table}`);
+          }
+        });
+        window.addEventListener('beforeunload', () => unsubscribe());
+        logRealtime(`Subscribed to board ${boardId}`);
+      } else {
+        logRealtime('Supabase client not available – realtime disabled');
+      }
+    </script>
 
   <!-- External Libraries: Canvas-Confetti, html2canvas, jsPDF, Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+    <script type="text/babel">
+      // -----------------------------------------------------
+      // Real‑time subscription setup (Step 2‑5)
+      // -----------------------------------------------------
+      const boardId = new URLSearchParams(window.location.search).get('board') || 'default-board-id';
+
+      function logRealtime(msg) { console.info(`[Realtime] ${msg}`); }
+
+      if (supabase) {
+        const unsubscribe = subscribeToSupabaseBoard(boardId, (payload) => {
+          const { eventType, new: newRec, old: oldRec, table } = payload;
+          // Simple UI update hooks – replace with your actual state handlers
+          if (eventType === 'INSERT') {
+            // Example: add new post/reaction/reply to local arrays if they exist
+            // You may need to call your existing render functions here
+            logRealtime(`INSERT on ${table}`);
+          } else if (eventType === 'UPDATE') {
+            logRealtime(`UPDATE on ${table}`);
+          } else if (eventType === 'DELETE') {
+            logRealtime(`DELETE on ${table}`);
+          }
+        });
+        window.addEventListener('beforeunload', () => unsubscribe());
+        logRealtime(`Subscribed to board ${boardId}`);
+      } else {
+        logRealtime('Supabase client not available – realtime disabled');
+      }
+    </script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script type="text/babel">
+      // -----------------------------------------------------
+      // Real‑time subscription setup (Step 2‑5)
+      // -----------------------------------------------------
+      const boardId = new URLSearchParams(window.location.search).get('board') || 'default-board-id';
+
+      function logRealtime(msg) { console.info(`[Realtime] ${msg}`); }
+
+      if (supabase) {
+        const unsubscribe = subscribeToSupabaseBoard(boardId, (payload) => {
+          const { eventType, new: newRec, old: oldRec, table } = payload;
+          // Simple UI update hooks – replace with your actual state handlers
+          if (eventType === 'INSERT') {
+            // Example: add new post/reaction/reply to local arrays if they exist
+            // You may need to call your existing render functions here
+            logRealtime(`INSERT on ${table}`);
+          } else if (eventType === 'UPDATE') {
+            logRealtime(`UPDATE on ${table}`);
+          } else if (eventType === 'DELETE') {
+            logRealtime(`DELETE on ${table}`);
+          }
+        });
+        window.addEventListener('beforeunload', () => unsubscribe());
+        logRealtime(`Subscribed to board ${boardId}`);
+      } else {
+        logRealtime('Supabase client not available – realtime disabled');
+      }
+    </script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script type="text/babel">
+      // -----------------------------------------------------
+      // Real‑time subscription setup (Step 2‑5)
+      // -----------------------------------------------------
+      const boardId = new URLSearchParams(window.location.search).get('board') || 'default-board-id';
+
+      function logRealtime(msg) { console.info(`[Realtime] ${msg}`); }
+
+      if (supabase) {
+        const unsubscribe = subscribeToSupabaseBoard(boardId, (payload) => {
+          const { eventType, new: newRec, old: oldRec, table } = payload;
+          // Simple UI update hooks – replace with your actual state handlers
+          if (eventType === 'INSERT') {
+            // Example: add new post/reaction/reply to local arrays if they exist
+            // You may need to call your existing render functions here
+            logRealtime(`INSERT on ${table}`);
+          } else if (eventType === 'UPDATE') {
+            logRealtime(`UPDATE on ${table}`);
+          } else if (eventType === 'DELETE') {
+            logRealtime(`DELETE on ${table}`);
+          }
+        });
+        window.addEventListener('beforeunload', () => unsubscribe());
+        logRealtime(`Subscribed to board ${boardId}`);
+      } else {
+        logRealtime('Supabase client not available – realtime disabled');
+      }
+    </script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="text/babel">
+      // -----------------------------------------------------
+      // Real‑time subscription setup (Step 2‑5)
+      // -----------------------------------------------------
+      const boardId = new URLSearchParams(window.location.search).get('board') || 'default-board-id';
+
+      function logRealtime(msg) { console.info(`[Realtime] ${msg}`); }
+
+      if (supabase) {
+        const unsubscribe = subscribeToSupabaseBoard(boardId, (payload) => {
+          const { eventType, new: newRec, old: oldRec, table } = payload;
+          // Simple UI update hooks – replace with your actual state handlers
+          if (eventType === 'INSERT') {
+            // Example: add new post/reaction/reply to local arrays if they exist
+            // You may need to call your existing render functions here
+            logRealtime(`INSERT on ${table}`);
+          } else if (eventType === 'UPDATE') {
+            logRealtime(`UPDATE on ${table}`);
+          } else if (eventType === 'DELETE') {
+            logRealtime(`DELETE on ${table}`);
+          }
+        });
+        window.addEventListener('beforeunload', () => unsubscribe());
+        logRealtime(`Subscribed to board ${boardId}`);
+      } else {
+        logRealtime('Supabase client not available – realtime disabled');
+      }
+    </script>
   <script src="./config.js"></script>
+    <script type="text/babel">
+      // -----------------------------------------------------
+      // Real‑time subscription setup (Step 2‑5)
+      // -----------------------------------------------------
+      const boardId = new URLSearchParams(window.location.search).get('board') || 'default-board-id';
+
+      function logRealtime(msg) { console.info(`[Realtime] ${msg}`); }
+
+      if (supabase) {
+        const unsubscribe = subscribeToSupabaseBoard(boardId, (payload) => {
+          const { eventType, new: newRec, old: oldRec, table } = payload;
+          // Simple UI update hooks – replace with your actual state handlers
+          if (eventType === 'INSERT') {
+            // Example: add new post/reaction/reply to local arrays if they exist
+            // You may need to call your existing render functions here
+            logRealtime(`INSERT on ${table}`);
+          } else if (eventType === 'UPDATE') {
+            logRealtime(`UPDATE on ${table}`);
+          } else if (eventType === 'DELETE') {
+            logRealtime(`DELETE on ${table}`);
+          }
+        });
+        window.addEventListener('beforeunload', () => unsubscribe());
+        logRealtime(`Subscribed to board ${boardId}`);
+      } else {
+        logRealtime('Supabase client not available – realtime disabled');
+      }
+    </script>
 
   <!-- Lucide Icons standalone bundle -->
   <script src="https://unpkg.com/lucide@latest"></script>
+    <script type="text/babel">
+      // -----------------------------------------------------
+      // Real‑time subscription setup (Step 2‑5)
+      // -----------------------------------------------------
+      const boardId = new URLSearchParams(window.location.search).get('board') || 'default-board-id';
+
+      function logRealtime(msg) { console.info(`[Realtime] ${msg}`); }
+
+      if (supabase) {
+        const unsubscribe = subscribeToSupabaseBoard(boardId, (payload) => {
+          const { eventType, new: newRec, old: oldRec, table } = payload;
+          // Simple UI update hooks – replace with your actual state handlers
+          if (eventType === 'INSERT') {
+            // Example: add new post/reaction/reply to local arrays if they exist
+            // You may need to call your existing render functions here
+            logRealtime(`INSERT on ${table}`);
+          } else if (eventType === 'UPDATE') {
+            logRealtime(`UPDATE on ${table}`);
+          } else if (eventType === 'DELETE') {
+            logRealtime(`DELETE on ${table}`);
+          }
+        });
+        window.addEventListener('beforeunload', () => unsubscribe());
+        logRealtime(`Subscribed to board ${boardId}`);
+      } else {
+        logRealtime('Supabase client not available – realtime disabled');
+      }
+    </script>
 
   <style>
     /* Global Styles & Print Optimization */
@@ -2698,5 +3006,33 @@
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
   </script>
+    <script type="text/babel">
+      // -----------------------------------------------------
+      // Real‑time subscription setup (Step 2‑5)
+      // -----------------------------------------------------
+      const boardId = new URLSearchParams(window.location.search).get('board') || 'default-board-id';
+
+      function logRealtime(msg) { console.info(`[Realtime] ${msg}`); }
+
+      if (supabase) {
+        const unsubscribe = subscribeToSupabaseBoard(boardId, (payload) => {
+          const { eventType, new: newRec, old: oldRec, table } = payload;
+          // Simple UI update hooks – replace with your actual state handlers
+          if (eventType === 'INSERT') {
+            // Example: add new post/reaction/reply to local arrays if they exist
+            // You may need to call your existing render functions here
+            logRealtime(`INSERT on ${table}`);
+          } else if (eventType === 'UPDATE') {
+            logRealtime(`UPDATE on ${table}`);
+          } else if (eventType === 'DELETE') {
+            logRealtime(`DELETE on ${table}`);
+          }
+        });
+        window.addEventListener('beforeunload', () => unsubscribe());
+        logRealtime(`Subscribed to board ${boardId}`);
+      } else {
+        logRealtime('Supabase client not available – realtime disabled');
+      }
+    </script>
 </body>
 </html>
