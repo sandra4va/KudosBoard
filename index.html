@@ -1,0 +1,2702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KudosBoard — Real-Time Collaborative Celebration Wall</title>
+  
+  <!-- Google Fonts: Caveat, Fredoka, Playfair Display, Lora, Patrick Hand, Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400..700&family=Fredoka:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800&family=Lora:ital,wght@0,400..700;1,400..700&family=Patrick+Hand&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            corkboard: ['Caveat', 'cursive'],
+            birthday: ['Fredoka', 'sans-serif'],
+            milestone: ['Playfair Display', 'serif'],
+            farewell: ['Lora', 'serif'],
+            classroom: ['Patrick Hand', 'cursive'],
+          },
+          animation: {
+            'bounce-subtle': 'bounceSubtle 2s infinite ease-in-out',
+            'float': 'float 3s ease-in-out infinite',
+            'pulse-glow': 'pulseGlow 2s infinite',
+          },
+          keyframes: {
+            bounceSubtle: {
+              '0%, 100%': { transform: 'translateY(-2%)' },
+              '50%': { transform: 'translateY(0)' },
+            },
+            float: {
+              '0%, 100%': { transform: 'translateY(0px) rotate(0deg)' },
+              '50%': { transform: 'translateY(-6px) rotate(1deg)' },
+            },
+            pulseGlow: {
+              '0%, 100%': { opacity: 1, filter: 'drop-shadow(0 0 8px rgba(251,191,36,0.6))' },
+              '50%': { opacity: 0.8, filter: 'drop-shadow(0 0 2px rgba(251,191,36,0.2))' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- React 18 & ReactDOM -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <!-- Babel Standalone for JSX compilation in browser -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- External Libraries: Canvas-Confetti, html2canvas, jsPDF, Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./config.js"></script>
+
+  <!-- Lucide Icons standalone bundle -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* Global Styles & Print Optimization */
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', sans-serif;
+      overflow-x: hidden;
+    }
+
+    /* Corkboard rotation variations for organic skeuomorphism */
+    .tilt-left { transform: rotate(-1deg); }
+    .tilt-right { transform: rotate(1deg); }
+    .tilt-left-sm { transform: rotate(-0.5deg); }
+    .tilt-right-sm { transform: rotate(0.6deg); }
+
+    /* Sticky note paper curls */
+    .paper-curl {
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06), 0 10px 15px -3px rgba(0, 0, 0, 0.08);
+      position: relative;
+    }
+    .paper-curl::after {
+      content: '';
+      position: absolute;
+      bottom: 2px;
+      right: 2px;
+      width: 16px;
+      height: 16px;
+      background: linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.06) 50%);
+      pointer-events: none;
+    }
+
+    /* Pushpin graphic */
+    .pushpin-head {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #f87171, #b91c1c);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      position: absolute;
+      top: -7px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+    }
+
+    /* Print Keepsake Card Stylesheet */
+    @media print {
+      body {
+        background: #ffffff !important;
+        color: #0f172a !important;
+      }
+      .no-print, nav, .toolbar-actions, .floating-add-btn, .reply-composer, .reactions-drawer, .modal-backdrop {
+        display: none !important;
+      }
+      #kudos-board-canvas {
+        background: transparent !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+      }
+      .kudos-card {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+        box-shadow: none !important;
+        border: 1.5px solid #cbd5e1 !important;
+        margin-bottom: 1.5rem !important;
+      }
+      .print-header {
+        display: block !important;
+        text-align: center;
+        border-bottom: 2px solid #0f172a;
+        padding-bottom: 1rem;
+        margin-bottom: 2rem;
+      }
+      .print-footer {
+        display: block !important;
+        text-align: center;
+        border-top: 1px solid #cbd5e1;
+        padding-top: 1rem;
+        margin-top: 2rem;
+        font-size: 0.85rem;
+        color: #64748b;
+      }
+    }
+
+    /* Hide export-only elements when in DOM capturing */
+    body.export-mode-active .no-print {
+      display: none !important;
+    }
+
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0,0,0,0.05);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(0,0,0,0.2);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(0,0,0,0.35);
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen">
+  <div id="root"></div>
+
+  <!-- Main Application Script (Babel Transpiled for React 18) -->
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useRef, useCallback } = React;
+
+    // ====================================================================
+    // Constants & Configurations
+    // ====================================================================
+
+    const THEMES = {
+      corkboard: {
+        id: 'corkboard',
+        name: 'Classic Corkboard',
+        subtitle: 'Warm pinboard with pushpins & handwritten notes',
+        fontFamily: "'Caveat', cursive",
+        bgClass: 'bg-[#b88351]',
+        bgPattern: `radial-gradient(circle at 50% 50%, rgba(255,255,255,0.08) 0%, transparent 100%), 
+                    radial-gradient(rgba(0,0,0,0.18) 15%, transparent 16%) 0 0, 
+                    radial-gradient(rgba(0,0,0,0.18) 15%, transparent 16%) 8px 8px`,
+        bgSize: 'auto, 16px 16px',
+        headerBadge: '📌 Corkboard Wall',
+        cardClass: 'paper-curl shadow-md border-amber-900/10 rounded-sm',
+        headerThemeClass: 'bg-amber-950/85 text-amber-50 backdrop-blur-md border-b border-amber-800/40',
+        pushpin: true,
+        accentColor: '#c99663',
+        primaryButton: 'bg-amber-800 hover:bg-amber-900 text-white shadow-amber-950/30'
+      },
+      birthday: {
+        id: 'birthday',
+        name: 'Birthday Bash',
+        subtitle: 'Pastel confetti gradient, rounded cards & celebration stickers',
+        fontFamily: "'Fredoka', sans-serif",
+        bgClass: 'bg-gradient-to-br from-[#fff1f5] via-[#fef9c3] to-[#e0f2fe]',
+        bgPattern: 'radial-gradient(circle, rgba(236,72,153,0.08) 10%, transparent 11%), radial-gradient(circle, rgba(59,130,246,0.08) 10%, transparent 11%) 16px 16px',
+        bgSize: '32px 32px',
+        headerBadge: '🎂 Birthday Party',
+        cardClass: 'shadow-lg border-2 border-white/80 rounded-[22px] hover:-translate-y-1 transition-all duration-300',
+        headerThemeClass: 'bg-white/85 text-pink-950 backdrop-blur-md border-b border-pink-200 shadow-sm',
+        pushpin: false,
+        accentColor: '#f43f5e',
+        primaryButton: 'bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white shadow-pink-200'
+      },
+      milestone: {
+        id: 'milestone',
+        name: 'Work Milestone',
+        subtitle: 'Deep midnight navy with prestige gold accents & serif typography',
+        fontFamily: "'Playfair Display', serif",
+        bgClass: 'bg-[#0b1120]',
+        bgPattern: 'radial-gradient(ellipse at top, #1e293b 0%, #0b1120 70%)',
+        bgSize: 'cover',
+        headerBadge: '🏆 Milestone Gala',
+        cardClass: 'shadow-xl border border-amber-400/30 rounded-2xl backdrop-blur-sm transition-all duration-300 hover:border-amber-400/60',
+        headerThemeClass: 'bg-slate-900/90 text-amber-100 backdrop-blur-md border-b border-amber-500/20 shadow-2xl',
+        pushpin: false,
+        accentColor: '#fbbf24',
+        primaryButton: 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-bold shadow-amber-500/20'
+      },
+      farewell: {
+        id: 'farewell',
+        name: 'Farewell & Good Luck',
+        subtitle: 'Warm sunset peach tones with heartfelt editorial cards',
+        fontFamily: "'Lora', serif",
+        bgClass: 'bg-gradient-to-br from-[#ffedd5] via-[#fef2f2] to-[#fecdd3]',
+        bgPattern: 'radial-gradient(circle, rgba(249,115,22,0.06) 1px, transparent 1px)',
+        bgSize: '20px 20px',
+        headerBadge: '🌅 Farewell & Cheers',
+        cardClass: 'shadow-md border border-orange-200/80 rounded-xl transition-all duration-200 hover:shadow-lg',
+        headerThemeClass: 'bg-orange-950/85 text-orange-50 backdrop-blur-md border-b border-orange-700/30 shadow-md',
+        pushpin: false,
+        accentColor: '#ea580c',
+        primaryButton: 'bg-orange-600 hover:bg-orange-700 text-white shadow-orange-300'
+      },
+      classroom: {
+        id: 'classroom',
+        name: 'Classroom / Teacher',
+        subtitle: 'Chalkboard green with subtle grid lines & notebook cards',
+        fontFamily: "'Patrick Hand', cursive",
+        bgClass: 'bg-[#183327]',
+        bgPattern: `linear-gradient(to right, rgba(255,255,255,0.05) 1px, transparent 1px),
+                    linear-gradient(to bottom, rgba(255,255,255,0.05) 1px, transparent 1px)`,
+        bgSize: '24px 24px',
+        headerBadge: '🍎 Classroom Wall',
+        cardClass: 'shadow-lg border-t-4 border-t-rose-400 border-x border-b border-stone-200 rounded-md transition-all duration-200',
+        headerThemeClass: 'bg-[#0f2119]/90 text-emerald-100 backdrop-blur-md border-b border-emerald-600/30 shadow-xl',
+        pushpin: false,
+        accentColor: '#10b981',
+        primaryButton: 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-900/30'
+      }
+    };
+
+    const NOTE_COLORS = {
+      lemon: { id: 'lemon', name: 'Lemon Cream', hex: '#fef9c3', border: '#fef08a', text: '#713f12' },
+      blush: { id: 'blush', name: 'Blush Rose', hex: '#ffe4e6', border: '#fecdd3', text: '#881337' },
+      sky: { id: 'sky', name: 'Sky Blue', hex: '#e0f2fe', border: '#bae6fd', text: '#0c4a6e' },
+      mint: { id: 'mint', name: 'Fresh Mint', hex: '#dcfce7', border: '#bbf7d0', text: '#14532d' },
+      lavender: { id: 'lavender', name: 'Soft Lavender', hex: '#f3e8ff', border: '#e9d5ff', text: '#581c87' },
+      peach: { id: 'peach', name: 'Warm Peach', hex: '#ffedd5', border: '#fed7aa', text: '#7c2d12' }
+    };
+
+    const ACCENT_EMOJIS = ['🎉', '⭐', '💖', '🚀', '🏆', '🎂', '🎓', '🌟', '🍀', '🔥'];
+    const ALLOWED_REACTIONS = ['❤️', '🎉', '👏', '😂', '🙌', '🔥'];
+
+    const STICKERS = [
+      { id: 'popper', name: 'Party Popper', emoji: '🎉', label: 'Party' },
+      { id: 'cake', name: 'Birthday Cake', emoji: '🎂', label: 'Cake' },
+      { id: 'trophy', name: 'Trophy', emoji: '🏆', label: 'Trophy' },
+      { id: 'rocket', name: 'Rocket Launch', emoji: '🚀', label: 'Rocket' },
+      { id: 'heart', name: 'Sparkling Heart', emoji: '💖', label: 'Heart' },
+      { id: 'star', name: 'Shining Star', emoji: '⭐', label: 'Star' },
+      { id: 'applause', name: 'High Five', emoji: '👏', label: 'Applause' },
+      { id: 'fire', name: 'On Fire!', emoji: '🔥', label: 'Fire' },
+      { id: 'sparkles', name: 'Magic Sparkles', emoji: '✨', label: 'Sparkles' },
+      { id: 'graduate', name: 'Graduation Cap', emoji: '🎓', label: 'Grad' }
+    ];
+
+    const INSPIRATION_PROMPTS = [
+      "You've been such an incredible teammate and friend. Thank you for always bringing positive energy!",
+      "Happy Birthday! May this year bring you endless laughter, joy, and grand adventures! 🎂",
+      "Huge congratulations on reaching this monumental milestone! Your hard work and dedication truly inspire us all.",
+      "We are going to miss you so much! Best of luck on your exciting new journey. Keep in touch!",
+      "Thank you for being such an extraordinary mentor and teacher. You truly made a difference in my life.",
+      "Working with you has been an absolute blast. Thank you for making every project smoother and brighter!",
+      "Your leadership, calm under pressure, and brilliant solutions saved the day more times than we can count. Bravo! 👏",
+      "To the one who always kept morale high and shared the best jokes—thank you for being you!",
+      "Wishing you tremendous success, good health, and abundant happiness in all that comes next! 🚀"
+    ];
+
+    const PRESET_PHOTOS = [
+      { id: 'p1', label: 'Party Confetti', url: 'https://images.unsplash.com/photo-1513151233558-d860c5398176?w=600&auto=format&fit=crop&q=80' },
+      { id: 'p2', label: 'Balloons', url: 'https://images.unsplash.com/photo-1530103862676-de8c9debad1d?w=600&auto=format&fit=crop&q=80' },
+      { id: 'p3', label: 'Celebration Toast', url: 'https://images.unsplash.com/photo-1464349095431-e9a21285b5f3?w=600&auto=format&fit=crop&q=80' },
+      { id: 'p4', label: 'Team High Five', url: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=600&auto=format&fit=crop&q=80' },
+      { id: 'p5', label: 'Sunset Journey', url: 'https://images.unsplash.com/photo-1495616811223-4d98c6e9c869?w=600&auto=format&fit=crop&q=80' }
+    ];
+
+    // ====================================================================
+    // Storage & Real-Time Sync Bus
+    // ====================================================================
+
+    const DB_KEY = 'kudosboard_db_v1';
+    const CREATOR_SESSION_KEY = 'kudosboard_creator_session';
+    const GUEST_FINGERPRINT_KEY = 'kudosboard_guest_fingerprint';
+
+    function getGuestFingerprint() {
+      let fp = localStorage.getItem(GUEST_FINGERPRINT_KEY);
+      if (!fp) {
+        fp = 'guest_' + Math.random().toString(36).substring(2, 9);
+        localStorage.setItem(GUEST_FINGERPRINT_KEY, fp);
+      }
+      return fp;
+    }
+
+    function getCreatorSession() {
+      try {
+        const raw = localStorage.getItem(CREATOR_SESSION_KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function setCreatorSession(session) {
+      if (!session) {
+        localStorage.removeItem(CREATOR_SESSION_KEY);
+      } else {
+        localStorage.setItem(CREATOR_SESSION_KEY, JSON.stringify(session));
+      }
+      broadcastEvent({ type: 'AUTH_STATE_CHANGED', payload: session });
+    }
+
+    const INITIAL_SEED = {
+      boards: [
+        {
+          id: 'b-birthday-maya',
+          creator_id: 'creator-demo-1',
+          share_slug: 'happy-birthday-maya',
+          title: 'Happy 30th Birthday, Maya! 🎂✨',
+          subtitle: 'Leave your favorite memories, birthday wishes, and celebration photos for Maya!',
+          theme: 'birthday',
+          default_layout: 'grid',
+          is_locked: false,
+          created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
+          updated_at: new Date(Date.now() - 3600000).toISOString()
+        },
+        {
+          id: 'b-team-milestone',
+          creator_id: 'creator-demo-1',
+          share_slug: 'team-milestone-launch',
+          title: 'Congratulations Team Phoenix on v2.0 Launch! 🚀',
+          subtitle: 'A huge shout-out to all designers, engineers, and PMs who made this milestone happen!',
+          theme: 'milestone',
+          default_layout: 'grid',
+          is_locked: false,
+          created_at: new Date(Date.now() - 86400000 * 5).toISOString(),
+          updated_at: new Date(Date.now() - 7200000).toISOString()
+        },
+        {
+          id: 'b-farewell-alex',
+          creator_id: 'creator-demo-2',
+          share_slug: 'farewell-alex-good-luck',
+          title: 'Farewell Alex — We Will Miss You! 🧡',
+          subtitle: 'Thank you for 5 remarkable years of inspiration, mentorship, and laughs.',
+          theme: 'corkboard',
+          default_layout: 'grid',
+          is_locked: false,
+          created_at: new Date(Date.now() - 86400000 * 7).toISOString(),
+          updated_at: new Date(Date.now() - 14400000).toISOString()
+        }
+      ],
+      kudos_posts: [
+        {
+          id: 'p-1',
+          board_id: 'b-birthday-maya',
+          author_name: 'Sophia Martinez',
+          is_anonymous: false,
+          message: 'Happy birthday to the most radiant human ever! Thank you for always bringing sunshine into the office. Have the happiest decade ahead! 🥳🎉',
+          color_id: 'lemon',
+          accent_emoji: '🎂',
+          sticker_id: 'cake',
+          photo_url: 'https://images.unsplash.com/photo-1513151233558-d860c5398176?w=600&auto=format&fit=crop&q=80',
+          created_at: new Date(Date.now() - 3600000 * 5).toISOString()
+        },
+        {
+          id: 'p-2',
+          board_id: 'b-birthday-maya',
+          author_name: 'David & Liam',
+          is_anonymous: false,
+          message: 'Maya, working alongside you has been pure joy. Cheers to another year of legendary coffee runs and big victories! ☕🍰',
+          color_id: 'blush',
+          accent_emoji: '💖',
+          sticker_id: 'popper',
+          photo_url: null,
+          created_at: new Date(Date.now() - 3600000 * 4).toISOString()
+        },
+        {
+          id: 'p-3',
+          board_id: 'b-birthday-maya',
+          author_name: 'A Secret Admirer',
+          is_anonymous: true,
+          message: 'You make every day at work 100x more fun. Keep shining bright, birthday girl! ✨🌟',
+          color_id: 'sky',
+          accent_emoji: '⭐',
+          sticker_id: 'star',
+          photo_url: 'https://images.unsplash.com/photo-1530103862676-de8c9debad1d?w=600&auto=format&fit=crop&q=80',
+          created_at: new Date(Date.now() - 3600000 * 3).toISOString()
+        },
+        {
+          id: 'p-4',
+          board_id: 'b-birthday-maya',
+          author_name: 'Marcus Vance',
+          is_anonymous: false,
+          message: 'Happy 30th Maya! May your year be filled with unforgettable travels, delicious food, and zero bugs in production! ✈️🍕',
+          color_id: 'mint',
+          accent_emoji: '🚀',
+          sticker_id: 'rocket',
+          photo_url: null,
+          created_at: new Date(Date.now() - 3600000 * 2).toISOString()
+        },
+        {
+          id: 'p-5',
+          board_id: 'b-birthday-maya',
+          author_name: 'Elena Rostova',
+          is_anonymous: false,
+          message: 'So grateful for your wisdom, patience, and contagious laughter. You are an inspiration to all of us! Cheers to 30! 🥂💫',
+          color_id: 'lavender',
+          accent_emoji: '🎉',
+          sticker_id: 'sparkles',
+          photo_url: 'https://images.unsplash.com/photo-1464349095431-e9a21285b5f3?w=600&auto=format&fit=crop&q=80',
+          created_at: new Date(Date.now() - 3600000 * 1).toISOString()
+        },
+        {
+          id: 'p-6',
+          board_id: 'b-birthday-maya',
+          author_name: 'Team Design',
+          is_anonymous: false,
+          message: 'High fives all around for our favorite teammate! Enjoy your special day to the fullest! 🙌🎈',
+          color_id: 'peach',
+          accent_emoji: '🔥',
+          sticker_id: 'applause',
+          photo_url: null,
+          created_at: new Date(Date.now() - 1800000).toISOString()
+        }
+      ],
+      kudos_reactions: [
+        { id: 'r-1', post_id: 'p-1', board_id: 'b-birthday-maya', emoji: '❤️', guest_fingerprint: 'guest_demo_1', created_at: new Date().toISOString() },
+        { id: 'r-2', post_id: 'p-1', board_id: 'b-birthday-maya', emoji: '🎉', guest_fingerprint: 'guest_demo_2', created_at: new Date().toISOString() },
+        { id: 'r-3', post_id: 'p-1', board_id: 'b-birthday-maya', emoji: '🔥', guest_fingerprint: 'guest_demo_3', created_at: new Date().toISOString() },
+        { id: 'r-4', post_id: 'p-2', board_id: 'b-birthday-maya', emoji: '👏', guest_fingerprint: 'guest_demo_1', created_at: new Date().toISOString() },
+        { id: 'r-5', post_id: 'p-2', board_id: 'b-birthday-maya', emoji: '❤️', guest_fingerprint: 'guest_demo_4', created_at: new Date().toISOString() },
+        { id: 'r-6', post_id: 'p-3', board_id: 'b-birthday-maya', emoji: '😂', guest_fingerprint: 'guest_demo_2', created_at: new Date().toISOString() },
+        { id: 'r-7', post_id: 'p-5', board_id: 'b-birthday-maya', emoji: '🙌', guest_fingerprint: 'guest_demo_3', created_at: new Date().toISOString() }
+      ],
+      kudos_replies: [
+        {
+          id: 'rep-1',
+          post_id: 'p-1',
+          board_id: 'b-birthday-maya',
+          author_name: 'Maya (Board Creator)',
+          is_creator: true,
+          reply_text: 'Aww thank you Sophia! This means the world to me! ❤️',
+          created_at: new Date(Date.now() - 3600000 * 3).toISOString()
+        },
+        {
+          id: 'rep-2',
+          post_id: 'p-1',
+          board_id: 'b-birthday-maya',
+          author_name: 'Lucas P.',
+          is_creator: false,
+          reply_text: 'Best colleague award goes to Maya without a doubt! 🥇',
+          created_at: new Date(Date.now() - 3600000 * 2).toISOString()
+        }
+      ]
+    };
+
+    function loadDB() {
+      try {
+        const raw = localStorage.getItem(DB_KEY);
+        if (!raw) {
+          localStorage.setItem(DB_KEY, JSON.stringify(INITIAL_SEED));
+          return INITIAL_SEED;
+        }
+        return JSON.parse(raw);
+      } catch (e) {
+        return INITIAL_SEED;
+      }
+    }
+
+    function saveDB(db) {
+      try {
+        localStorage.setItem(DB_KEY, JSON.stringify(db));
+      } catch (e) {}
+    }
+
+    // Realtime Broadcast Channel & Window Storage Sync
+    let realTimeBus = null;
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      realTimeBus = new BroadcastChannel('kudosboard_channel');
+    }
+
+    function broadcastEvent(event) {
+      const payload = { ...event, timestamp: Date.now() };
+      if (realTimeBus) {
+        try { realTimeBus.postMessage(payload); } catch (e) {}
+      }
+      try {
+        localStorage.setItem('kudosboard_sync_tick', JSON.stringify(payload));
+      } catch (e) {}
+      window.dispatchEvent(new CustomEvent('kudos_realtime', { detail: payload }));
+    }
+
+    // ====================================================================
+    // Main React Application
+    // ====================================================================
+
+    function App() {
+      // Routing state: 'board' or 'dashboard'
+      const [currentRoute, setCurrentRoute] = useState('board');
+      const [activeSlug, setActiveSlug] = useState('happy-birthday-maya');
+      
+      // Board state
+      const [db, setDb] = useState(() => loadDB());
+      const [creatorSession, setSession] = useState(() => getCreatorSession());
+      const [layoutMode, setLayoutMode] = useState('grid'); // 'grid' | 'timeline' | 'slideshow'
+      
+      // Modals
+      const [showAddModal, setShowAddModal] = useState(false);
+      const [showAuthModal, setShowAuthModal] = useState(false);
+      const [showNewBoardModal, setShowNewBoardModal] = useState(false);
+      const [showSupabaseModal, setShowSupabaseModal] = useState(false);
+
+      // Remote Supabase Client (Optional Live PostgreSQL connection)
+      const [supabaseClient, setSupabaseClient] = useState(() => {
+        try {
+          const saved = localStorage.getItem('kudosboard_supabase_config');
+          const cfg = saved ? JSON.parse(saved) : (window.KUDOSBOARD_ENV || {});
+          if (cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY && window.supabase) {
+            return window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+          }
+        } catch (e) {}
+        return null;
+      });
+      
+      // Live Presence Counter
+      const [onlineCount, setOnlineCount] = useState(3);
+
+      // Toast Notification
+      const [toast, setToast] = useState(null);
+
+      const showNotification = (msg) => {
+        setToast(msg);
+        setTimeout(() => setToast(null), 3500);
+      };
+
+      // Handle URL Hash Navigation
+      useEffect(() => {
+        const handleHashChange = () => {
+          const hash = window.location.hash;
+          if (hash.startsWith('#/dashboard')) {
+            setCurrentRoute('dashboard');
+          } else if (hash.startsWith('#/board/')) {
+            const slug = hash.replace('#/board/', '');
+            if (slug) {
+              setActiveSlug(slug);
+              setCurrentRoute('board');
+            }
+          }
+        };
+
+        window.addEventListener('hashchange', handleHashChange);
+        handleHashChange();
+        return () => window.removeEventListener('hashchange', handleHashChange);
+      }, []);
+
+      // Realtime listener
+      useEffect(() => {
+        const handleRealtime = (payload) => {
+          setDb(loadDB());
+          if (payload.type === 'POST_INSERT') {
+            showNotification(`${payload.payload.author_name} just added a new note! ✨`);
+          } else if (payload.type === 'BOARD_UPDATE') {
+            showNotification(`Board settings updated! 🎨`);
+          }
+        };
+
+        const onCustomEvent = (e) => handleRealtime(e.detail);
+        window.addEventListener('kudos_realtime', onCustomEvent);
+
+        if (realTimeBus) {
+          realTimeBus.onmessage = (e) => handleRealtime(e.data);
+        }
+
+        const onStorage = (e) => {
+          if (e.key === 'kudosboard_sync_tick' && e.newValue) {
+            try {
+              handleRealtime(JSON.parse(e.newValue));
+            } catch (err) {}
+          }
+        };
+        window.addEventListener('storage', onStorage);
+
+        // Presence heartbeat simulation
+        const presenceTimer = setInterval(() => {
+          // slight realistic jitter
+          setOnlineCount(prev => Math.max(2, Math.min(8, prev + (Math.random() > 0.5 ? 1 : -1))));
+        }, 8000);
+
+        return () => {
+          window.removeEventListener('kudos_realtime', onCustomEvent);
+          window.removeEventListener('storage', onStorage);
+          clearInterval(presenceTimer);
+        };
+      }, []);
+
+      // Current active board
+      const currentBoard = useMemo(() => {
+        return db.boards.find(b => b.share_slug === activeSlug) || db.boards[0];
+      }, [db.boards, activeSlug]);
+
+      // Check if current user is Creator of active board
+      const isCreator = useMemo(() => {
+        if (!creatorSession || !currentBoard) return false;
+        return creatorSession.creator_id === currentBoard.creator_id;
+      }, [creatorSession, currentBoard]);
+
+      // Posts with aggregated reactions and replies
+      const boardPosts = useMemo(() => {
+        if (!currentBoard) return [];
+        const fp = getGuestFingerprint();
+        const posts = db.kudos_posts.filter(p => p.board_id === currentBoard.id);
+        const reactions = db.kudos_reactions.filter(r => r.board_id === currentBoard.id);
+        const replies = db.kudos_replies.filter(rep => rep.board_id === currentBoard.id);
+
+        return posts.map(post => {
+          const postRx = reactions.filter(r => r.post_id === post.id);
+          const postReps = replies.filter(rep => rep.post_id === post.id);
+
+          const counts = { '❤️': 0, '🎉': 0, '👏': 0, '😂': 0, '🙌': 0, '🔥': 0 };
+          const userReacted = { '❤️': false, '🎉': false, '👏': false, '😂': false, '🙌': false, '🔥': false };
+
+          postRx.forEach(r => {
+            if (counts[r.emoji] !== undefined) counts[r.emoji]++;
+            if (r.guest_fingerprint === fp) userReacted[r.emoji] = true;
+          });
+
+          return {
+            ...post,
+            reactions: counts,
+            user_reacted: userReacted,
+            replies: postReps.sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+          };
+        }).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      }, [db, currentBoard]);
+
+      // Theme configuration
+      const themeConfig = THEMES[currentBoard?.theme] || THEMES.corkboard;
+
+      // Creator Mutations
+      const handleUpdateBoard = (updates) => {
+        if (!isCreator) {
+          alert('403 Forbidden: Only the board creator can modify board settings.');
+          return;
+        }
+        const updated = { ...currentBoard, ...updates, updated_at: new Date().toISOString() };
+        const newBoards = db.boards.map(b => b.id === currentBoard.id ? updated : b);
+        const newDb = { ...db, boards: newBoards };
+        saveDB(newDb);
+        setDb(newDb);
+        broadcastEvent({ type: 'BOARD_UPDATE', payload: updated, board_id: currentBoard.id });
+      };
+
+      const handleDeletePost = (postId) => {
+        if (!isCreator) {
+          alert('403 Forbidden: Only the board creator can delete posts.');
+          return;
+        }
+        if (!confirm('Are you sure you want to remove this post?')) return;
+        const newPosts = db.kudos_posts.filter(p => p.id !== postId);
+        const newRx = db.kudos_reactions.filter(r => r.post_id !== postId);
+        const newReps = db.kudos_replies.filter(r => r.post_id !== postId);
+        const newDb = { ...db, kudos_posts: newPosts, kudos_reactions: newRx, kudos_replies: newReps };
+        saveDB(newDb);
+        setDb(newDb);
+        broadcastEvent({ type: 'POST_DELETE', payload: { id: postId }, board_id: currentBoard.id });
+      };
+
+      const handleDeleteReply = (replyId) => {
+        if (!isCreator) {
+          alert('403 Forbidden: Only the board creator can delete replies.');
+          return;
+        }
+        const newReps = db.kudos_replies.filter(r => r.id !== replyId);
+        const newDb = { ...db, kudos_replies: newReps };
+        saveDB(newDb);
+        setDb(newDb);
+        broadcastEvent({ type: 'REPLY_DELETE', payload: { id: replyId }, board_id: currentBoard.id });
+      };
+
+      // Guest / Creator Actions
+      const handleToggleReaction = (postId, emoji) => {
+        const fp = getGuestFingerprint();
+        const existingIdx = db.kudos_reactions.findIndex(
+          r => r.post_id === postId && r.emoji === emoji && r.guest_fingerprint === fp
+        );
+        let newRx = [...db.kudos_reactions];
+        let action = '';
+        if (existingIdx !== -1) {
+          newRx.splice(existingIdx, 1);
+          action = 'removed';
+        } else {
+          newRx.push({
+            id: 'r-' + Math.random().toString(36).substring(2, 9),
+            post_id: postId,
+            board_id: currentBoard.id,
+            emoji,
+            guest_fingerprint: fp,
+            created_at: new Date().toISOString()
+          });
+          action = 'added';
+        }
+        const newDb = { ...db, kudos_reactions: newRx };
+        saveDB(newDb);
+        setDb(newDb);
+        broadcastEvent({
+          type: 'REACTION_TOGGLE',
+          payload: { post_id: postId, emoji, action },
+          board_id: currentBoard.id
+        });
+      };
+
+      const handleAddReply = (postId, replyText, authorName) => {
+        if (!replyText || !replyText.trim()) return;
+        if (currentBoard.is_locked) {
+          alert('This board is locked.');
+          return;
+        }
+        const newReply = {
+          id: 'rep-' + Math.random().toString(36).substring(2, 9),
+          post_id: postId,
+          board_id: currentBoard.id,
+          author_name: isCreator ? (authorName || 'Board Creator 👑') : (authorName || 'Guest'),
+          is_creator: isCreator,
+          reply_text: replyText.trim(),
+          created_at: new Date().toISOString()
+        };
+        const newDb = { ...db, kudos_replies: [...db.kudos_replies, newReply] };
+        saveDB(newDb);
+        setDb(newDb);
+        broadcastEvent({ type: 'REPLY_INSERT', payload: newReply, board_id: currentBoard.id });
+      };
+
+      const handleAddPost = (postData) => {
+        if (currentBoard.is_locked) {
+          alert('Submissions are locked for this board.');
+          return;
+        }
+        const newPost = {
+          id: 'p-' + Math.random().toString(36).substring(2, 9),
+          board_id: currentBoard.id,
+          author_name: postData.is_anonymous ? 'Anonymous' : (postData.author_name || 'Friendly Guest'),
+          is_anonymous: !!postData.is_anonymous,
+          message: postData.message.trim(),
+          color_id: postData.color_id || 'lemon',
+          accent_emoji: postData.accent_emoji || '🎉',
+          sticker_id: postData.sticker_id || 'none',
+          photo_url: postData.photo_url || null,
+          created_at: new Date().toISOString()
+        };
+        const newDb = { ...db, kudos_posts: [newPost, ...db.kudos_posts] };
+        saveDB(newDb);
+        setDb(newDb);
+        broadcastEvent({ type: 'POST_INSERT', payload: newPost, board_id: currentBoard.id });
+        setShowAddModal(false);
+
+        // Confetti burst on post
+        if (window.confetti) {
+          window.confetti({ particleCount: 70, spread: 60, origin: { y: 0.7 } });
+        }
+      };
+
+      // Export handlers
+      const handleExportJPG = async () => {
+        const boardEl = document.getElementById('kudos-board-canvas');
+        if (!boardEl || !window.html2canvas) {
+          alert('Canvas export engine initializing...');
+          return;
+        }
+        document.body.classList.add('export-mode-active');
+        try {
+          const canvas = await window.html2canvas(boardEl, {
+            scale: 2,
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: null
+          });
+          const link = document.createElement('a');
+          link.download = `${currentBoard.share_slug}-keepsake.jpg`;
+          link.href = canvas.toDataURL('image/jpeg', 0.95);
+          link.click();
+          showNotification('JPG Keepsake downloaded successfully! 📸');
+        } catch (e) {
+          alert('Failed to export JPG: ' + e.message);
+        } finally {
+          document.body.classList.remove('export-mode-active');
+        }
+      };
+
+      const handleExportPDF = () => {
+        if (!window.jspdf) {
+          alert('PDF engine initializing...');
+          return;
+        }
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const margin = 20;
+
+        // Cover Page
+        doc.setFillColor(30, 41, 59);
+        doc.rect(0, 0, pageWidth, pageHeight, 'F');
+        doc.setDrawColor(251, 191, 36);
+        doc.setLineWidth(1.5);
+        doc.rect(margin - 5, margin - 5, pageWidth - (margin - 5) * 2, pageHeight - (margin - 5) * 2);
+
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(24);
+        const cleanTitle = (currentBoard.title || 'Celebration Kudos Board').replace(/[^\x00-\x7F]/g, '');
+        const titleLines = doc.splitTextToSize(cleanTitle, pageWidth - margin * 2 - 10);
+        doc.text(titleLines, pageWidth / 2, 85, { align: 'center' });
+
+        doc.setTextColor(203, 213, 225);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(13);
+        const cleanSub = (currentBoard.subtitle || 'A digital keepsake of warm messages & congratulations').replace(/[^\x00-\x7F]/g, '');
+        const subLines = doc.splitTextToSize(cleanSub, pageWidth - margin * 2 - 20);
+        doc.text(subLines, pageWidth / 2, 115, { align: 'center' });
+
+        doc.setTextColor(251, 191, 36);
+        doc.setFontSize(11);
+        doc.text(`Total Messages: ${boardPosts.length}  •  Created on KudosBoard`, pageWidth / 2, 150, { align: 'center' });
+        doc.text(`Exported: ${new Date().toLocaleDateString()}`, pageWidth / 2, 160, { align: 'center' });
+
+        // Messages page
+        let currentY = margin + 10;
+        doc.addPage();
+        doc.setFillColor(248, 250, 252);
+        doc.rect(0, 0, pageWidth, pageHeight, 'F');
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(16);
+        doc.setTextColor(15, 23, 42);
+        doc.text('Messages & Well Wishes', margin, currentY);
+        currentY += 15;
+
+        boardPosts.forEach((post) => {
+          const cardHeight = 40;
+          if (currentY + cardHeight > pageHeight - margin) {
+            doc.addPage();
+            doc.setFillColor(248, 250, 252);
+            doc.rect(0, 0, pageWidth, pageHeight, 'F');
+            currentY = margin + 10;
+          }
+
+          doc.setFillColor(255, 255, 255);
+          doc.setDrawColor(226, 232, 240);
+          doc.setLineWidth(0.5);
+          doc.roundedRect(margin, currentY, pageWidth - margin * 2, cardHeight, 3, 3, 'FD');
+
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(10);
+          doc.setTextColor(30, 41, 59);
+          const authorText = (post.is_anonymous ? 'Anonymous' : (post.author_name || 'Guest')).replace(/[^\x00-\x7F]/g, '');
+          doc.text(authorText, margin + 6, currentY + 9);
+
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(8);
+          doc.setTextColor(100, 116, 139);
+          doc.text(new Date(post.created_at).toLocaleDateString(), pageWidth - margin - 25, currentY + 9);
+
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(9);
+          doc.setTextColor(51, 65, 85);
+          const cleanMsg = (post.message || '').replace(/[^\x00-\x7F]/g, '');
+          const msgLines = doc.splitTextToSize(cleanMsg, pageWidth - margin * 2 - 12);
+          doc.text(msgLines.slice(0, 3), margin + 6, currentY + 18);
+
+          currentY += cardHeight + 6;
+        });
+
+        doc.save(`${currentBoard.share_slug}-celebration-book.pdf`);
+        showNotification('PDF Celebration Book downloaded! 📄');
+      };
+
+      const handlePrint = () => {
+        window.print();
+      };
+
+      const handleResetDemoData = () => {
+        if (confirm('Reset KudosBoard database to initial sample celebration boards?')) {
+          localStorage.setItem(DB_KEY, JSON.stringify(INITIAL_SEED));
+          setDb(INITIAL_SEED);
+          broadcastEvent({ type: 'DATABASE_RESET' });
+          showNotification('Database reset to fresh demo state!');
+        }
+      };
+
+      return (
+        <div className="min-h-screen flex flex-col transition-colors duration-500 selection:bg-pink-300 selection:text-pink-900">
+          
+          {/* Top Global Navigation Bar */}
+          <nav className="no-print bg-slate-900/95 text-white backdrop-blur-md sticky top-0 z-40 border-b border-slate-800 px-4 py-2.5">
+            <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+              
+              {/* Brand Logo & Board Selector */}
+              <div className="flex items-center gap-3">
+                <a href="#/board/happy-birthday-maya" className="flex items-center gap-2 font-bold text-lg tracking-tight hover:opacity-90 transition">
+                  <span className="p-1.5 bg-gradient-to-tr from-amber-400 via-pink-500 to-purple-500 rounded-lg shadow-sm">
+                    🎉
+                  </span>
+                  <span>KudosBoard</span>
+                </a>
+
+                {/* Quick Board Switcher Dropdown */}
+                <div className="hidden md:flex items-center gap-1.5 ml-3 pl-3 border-l border-slate-700 text-xs text-slate-300">
+                  <span className="text-slate-400 font-medium">Board:</span>
+                  <select
+                    value={activeSlug}
+                    onChange={(e) => {
+                      const slug = e.target.value;
+                      setActiveSlug(slug);
+                      window.location.hash = `#/board/${slug}`;
+                    }}
+                    className="bg-slate-800 text-slate-100 rounded px-2 py-1 border border-slate-700 focus:outline-none focus:border-amber-400 text-xs cursor-pointer"
+                  >
+                    {db.boards.map(b => (
+                      <option key={b.id} value={b.share_slug}>
+                        {b.title.slice(0, 26)}... ({b.theme})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Realtime Live Presence Indicator */}
+              <div className="flex items-center gap-2 bg-slate-800/80 px-3 py-1 rounded-full border border-slate-700/60 text-xs">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <span className="text-slate-300 font-medium">
+                  {onlineCount} people viewing & signing live
+                </span>
+              </div>
+
+              {/* Navigation Actions */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowSupabaseModal(true)}
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition flex items-center gap-1.5 ${
+                    supabaseClient
+                      ? 'bg-emerald-950/80 text-emerald-300 border-emerald-600/50 hover:bg-emerald-900/80'
+                      : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+                  }`}
+                  title="Configure remote Supabase PostgreSQL connection"
+                >
+                  <span className="text-amber-400">⚡</span>
+                  <span className="hidden sm:inline">{supabaseClient ? 'Supabase: Live' : 'Connect Supabase'}</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    if (currentRoute === 'dashboard') {
+                      window.location.hash = `#/board/${activeSlug}`;
+                      setCurrentRoute('board');
+                    } else {
+                      window.location.hash = '#/dashboard';
+                      setCurrentRoute('dashboard');
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5"
+                >
+                  {currentRoute === 'dashboard' ? (
+                    <><span>← Back to Board</span></>
+                  ) : (
+                    <><span>👑 Creator Dashboard</span></>
+                  )}
+                </button>
+
+                {creatorSession ? (
+                  <div className="flex items-center gap-2 pl-2 border-l border-slate-700">
+                    <span className="hidden sm:inline text-xs text-amber-300 font-medium bg-amber-950/60 px-2 py-0.5 rounded border border-amber-800/50">
+                      Logged in: {creatorSession.email.split('@')[0]}
+                    </span>
+                    <button
+                      onClick={() => setCreatorSession(null)}
+                      title="Log out from Creator session"
+                      className="px-2.5 py-1 text-xs text-slate-400 hover:text-rose-300 transition"
+                    >
+                      Sign Out
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowAuthModal(true)}
+                    className="px-3 py-1.5 text-xs font-semibold bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 rounded-lg shadow-sm transition"
+                  >
+                    Creator Login
+                  </button>
+                )}
+              </div>
+            </div>
+          </nav>
+
+          {/* Toast Notification Banner */}
+          {toast && (
+            <div className="no-print fixed top-16 right-4 z-50 bg-slate-900/95 text-white px-4 py-3 rounded-xl shadow-2xl border border-amber-400/30 flex items-center gap-3 animate-bounce-subtle backdrop-blur-md">
+              <span className="text-xl">✨</span>
+              <span className="text-xs font-medium text-slate-100">{toast}</span>
+            </div>
+          )}
+
+          {/* VIEW 1: CREATOR DASHBOARD */}
+          {currentRoute === 'dashboard' && (
+            <CreatorDashboard
+              db={db}
+              creatorSession={creatorSession}
+              onOpenAuth={() => setShowAuthModal(true)}
+              onSelectBoard={(slug) => {
+                setActiveSlug(slug);
+                setCurrentRoute('board');
+                window.location.hash = `#/board/${slug}`;
+              }}
+              onCreateBoard={() => setShowNewBoardModal(true)}
+              onDeleteBoard={(boardId) => {
+                if (confirm('Permanently delete this celebration board and all its messages?')) {
+                  const newBoards = db.boards.filter(b => b.id !== boardId);
+                  const newDb = { ...db, boards: newBoards };
+                  saveDB(newDb);
+                  setDb(newDb);
+                  broadcastEvent({ type: 'BOARD_DELETED', payload: { id: boardId } });
+                  showNotification('Board deleted.');
+                }
+              }}
+              onToggleLock={(boardId, currentLocked) => {
+                const newBoards = db.boards.map(b => b.id === boardId ? { ...b, is_locked: !currentLocked } : b);
+                const newDb = { ...db, boards: newBoards };
+                saveDB(newDb);
+                setDb(newDb);
+                broadcastEvent({ type: 'BOARD_UPDATE', payload: { id: boardId, is_locked: !currentLocked } });
+              }}
+              onResetData={handleResetDemoData}
+            />
+          )}
+
+          {/* VIEW 2: PUBLIC / CREATOR INTERACTIVE BOARD */}
+          {currentRoute === 'board' && currentBoard && (
+            <div
+              id="kudos-board-canvas"
+              className={`flex-1 flex flex-col relative transition-all duration-300 ${themeConfig.bgClass}`}
+              style={{
+                backgroundImage: themeConfig.bgPattern,
+                backgroundSize: themeConfig.bgSize,
+                fontFamily: themeConfig.fontFamily
+              }}
+            >
+              
+              {/* Board Header Chrome */}
+              <header className={`no-print ${themeConfig.headerThemeClass} px-4 py-6 transition-all duration-300`}>
+                <div className="max-w-6xl mx-auto">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    
+                    {/* Title & Subtitle (Inline editable by creator!) */}
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-xs px-2.5 py-0.5 rounded-full bg-white/20 border border-white/20 font-semibold tracking-wide uppercase">
+                          {themeConfig.headerBadge}
+                        </span>
+                        {isCreator && (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-amber-400/30 text-amber-300 border border-amber-400/40 font-bold flex items-center gap-1">
+                            👑 Creator Mode Active
+                          </span>
+                        )}
+                        {currentBoard.is_locked && (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-rose-500/30 text-rose-200 border border-rose-400/40 font-bold flex items-center gap-1">
+                            🔒 Submissions Locked
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Title Display or Inline Edit */}
+                      {isCreator ? (
+                        <div className="group relative">
+                          <input
+                            type="text"
+                            value={currentBoard.title}
+                            onChange={(e) => handleUpdateBoard({ title: e.target.value })}
+                            className="w-full text-2xl sm:text-3xl md:text-4xl font-extrabold bg-black/10 hover:bg-black/20 focus:bg-black/30 rounded-lg px-2 py-1 border border-transparent hover:border-white/30 focus:border-amber-400 focus:outline-none transition"
+                            placeholder="Enter board title..."
+                          />
+                          <span className="text-[10px] text-white/50 block ml-2">Click to edit title as Creator</span>
+                        </div>
+                      ) : (
+                        <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight">
+                          {currentBoard.title}
+                        </h1>
+                      )}
+
+                      {/* Subtitle */}
+                      {isCreator ? (
+                        <input
+                          type="text"
+                          value={currentBoard.subtitle || ''}
+                          onChange={(e) => handleUpdateBoard({ subtitle: e.target.value })}
+                          className="w-full text-sm sm:text-base mt-1 bg-black/10 hover:bg-black/20 focus:bg-black/30 rounded px-2 py-0.5 border border-transparent hover:border-white/30 focus:border-amber-400 focus:outline-none transition text-white/80"
+                          placeholder="Enter board subtitle..."
+                        />
+                      ) : (
+                        <p className="text-sm sm:text-base text-white/80 mt-1">
+                          {currentBoard.subtitle}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Quick Stats & Share Link */}
+                    <div className="flex flex-row md:flex-col items-center md:items-end justify-between gap-3 text-xs">
+                      <div className="flex items-center gap-3 bg-black/20 px-3 py-1.5 rounded-xl border border-white/10">
+                        <div>
+                          <span className="font-bold text-base text-amber-300">{boardPosts.length}</span>
+                          <span className="text-white/70 ml-1">Notes</span>
+                        </div>
+                        <div className="w-px h-4 bg-white/20"></div>
+                        <div>
+                          <span className="font-bold text-base text-pink-300">
+                            {boardPosts.reduce((acc, p) => acc + Object.values(p.reactions || {}).reduce((a, b) => a + b, 0), 0)}
+                          </span>
+                          <span className="text-white/70 ml-1">Reactions</span>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          const url = window.location.href;
+                          navigator.clipboard.writeText(url);
+                          showNotification('Shareable Guest URL copied to clipboard! 📋');
+                        }}
+                        className="px-3 py-1.5 bg-white/15 hover:bg-white/25 border border-white/20 rounded-lg text-xs font-semibold text-white transition flex items-center gap-1.5 shadow-sm"
+                      >
+                        <span>🔗 Copy Share Link</span>
+                      </button>
+                    </div>
+
+                  </div>
+                </div>
+              </header>
+
+              {/* Board Toolbar (Themes, Layouts, Exports & Actions) */}
+              <div className="no-print bg-slate-900/60 backdrop-blur-md border-b border-slate-700/40 text-slate-200 px-4 py-2 sticky top-[49px] z-30">
+                <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3 text-xs">
+                  
+                  {/* Left: Layout Switches & Viewers */}
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-slate-400 font-medium hidden sm:inline">Layout:</span>
+                    <button
+                      onClick={() => setLayoutMode('grid')}
+                      className={`px-3 py-1 rounded-md font-medium transition flex items-center gap-1 ${
+                        layoutMode === 'grid' ? 'bg-amber-500 text-slate-950 font-bold' : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
+                      }`}
+                    >
+                      <span>📌 Corkboard Grid</span>
+                    </button>
+                    <button
+                      onClick={() => setLayoutMode('timeline')}
+                      className={`px-3 py-1 rounded-md font-medium transition flex items-center gap-1 ${
+                        layoutMode === 'timeline' ? 'bg-amber-500 text-slate-950 font-bold' : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
+                      }`}
+                    >
+                      <span>⏱️ Timeline</span>
+                    </button>
+                    <button
+                      onClick={() => setLayoutMode('slideshow')}
+                      className="px-3 py-1 rounded-md font-medium bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-sm transition flex items-center gap-1"
+                    >
+                      <span>📺 Present Slideshow</span>
+                    </button>
+                  </div>
+
+                  {/* Middle / Right: Theme Switcher (Active for Creator, visible preview for all) */}
+                  <div className="flex items-center gap-2">
+                    {isCreator && (
+                      <div className="flex items-center gap-1.5 bg-slate-800/80 px-2 py-1 rounded-lg border border-slate-700">
+                        <span className="text-amber-400 font-semibold">Theme:</span>
+                        <select
+                          value={currentBoard.theme}
+                          onChange={(e) => handleUpdateBoard({ theme: e.target.value })}
+                          className="bg-slate-900 text-slate-200 rounded px-2 py-0.5 border border-slate-600 focus:outline-none focus:border-amber-400 text-xs cursor-pointer"
+                        >
+                          {Object.values(THEMES).map(t => (
+                            <option key={t.id} value={t.id}>{t.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {isCreator && (
+                      <button
+                        onClick={() => handleUpdateBoard({ is_locked: !currentBoard.is_locked })}
+                        className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition ${
+                          currentBoard.is_locked 
+                            ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 hover:bg-rose-500/30' 
+                            : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30'
+                        }`}
+                      >
+                        {currentBoard.is_locked ? '🔒 Locked' : '🔓 Unlocked'}
+                      </button>
+                    )}
+
+                    {/* Export Dropdown / Buttons */}
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={handleExportJPG}
+                        title="Download 2x High-Res JPG Snapshot"
+                        className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 transition"
+                      >
+                        📷 JPG
+                      </button>
+                      <button
+                        onClick={handleExportPDF}
+                        title="Download Multi-Page PDF Celebration Book"
+                        className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 transition"
+                      >
+                        📄 PDF Book
+                      </button>
+                      <button
+                        onClick={handlePrint}
+                        title="Print Keepsake Card"
+                        className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 transition"
+                      >
+                        🖨️ Print
+                      </button>
+                    </div>
+
+                    {/* Add Note Button in Toolbar */}
+                    <button
+                      onClick={() => setShowAddModal(true)}
+                      disabled={currentBoard.is_locked}
+                      className={`px-3 py-1 rounded-lg font-bold shadow-md transition flex items-center gap-1.5 ${
+                        currentBoard.is_locked 
+                          ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
+                          : themeConfig.primaryButton
+                      }`}
+                    >
+                      <span>✍️ Add a Note</span>
+                    </button>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* Main Content Area */}
+              <main id="board-content-wrapper" className="flex-1 max-w-6xl mx-auto w-full px-4 py-8">
+                
+                {/* Print Only Header */}
+                <div className="hidden print:block print-header">
+                  <h1 className="text-3xl font-bold">{currentBoard.title}</h1>
+                  <p className="text-slate-600 mt-1">{currentBoard.subtitle}</p>
+                  <p className="text-xs text-slate-400 mt-2">Celebration Keepsake Export • {new Date().toLocaleDateString()}</p>
+                </div>
+
+                {boardPosts.length === 0 ? (
+                  <div className="bg-white/90 backdrop-blur-md rounded-2xl p-12 text-center max-w-lg mx-auto shadow-xl border border-dashed border-slate-300">
+                    <span className="text-5xl block mb-3">💌</span>
+                    <h3 className="text-2xl font-bold text-slate-800 mb-2">Be the first to sign this board!</h3>
+                    <p className="text-slate-600 text-sm mb-6">
+                      Add a heartfelt message, photo, celebration sticker, or confetti to start the party.
+                    </p>
+                    <button
+                      onClick={() => setShowAddModal(true)}
+                      className={`px-6 py-2.5 rounded-xl font-bold text-base shadow-lg transition ${themeConfig.primaryButton}`}
+                    >
+                      ✍️ Write First Kudos Note
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    {/* LAYOUT 1: MASONRY GRID VIEW */}
+                    {layoutMode === 'grid' && (
+                      <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-3 gap-6 space-y-6">
+                        {boardPosts.map((post, idx) => (
+                          <KudosCard
+                            key={post.id}
+                            post={post}
+                            index={idx}
+                            theme={currentBoard.theme}
+                            isCreator={isCreator}
+                            onToggleReaction={(emoji) => handleToggleReaction(post.id, emoji)}
+                            onDeletePost={() => handleDeletePost(post.id)}
+                            onAddReply={(text, author) => handleAddReply(post.id, text, author)}
+                            onDeleteReply={(repId) => handleDeleteReply(repId)}
+                          />
+                        ))}
+                      </div>
+                    )}
+
+                    {/* LAYOUT 2: CHRONOLOGICAL TIMELINE VIEW */}
+                    {layoutMode === 'timeline' && (
+                      <div className="relative border-l-2 border-white/40 ml-4 md:ml-32 pl-6 space-y-8 py-4">
+                        {boardPosts.map((post, idx) => (
+                          <div key={post.id} className="relative group">
+                            {/* Milestone Marker Node */}
+                            <div className="absolute -left-[35px] top-4 w-8 h-8 rounded-full bg-white shadow-md border-2 border-amber-500 flex items-center justify-center text-sm font-bold z-10">
+                              {post.accent_emoji || '🎉'}
+                            </div>
+
+                            {/* Timestamp tag */}
+                            <div className="md:absolute md:-left-36 md:top-4 text-xs font-semibold text-white/90 mb-1 md:mb-0">
+                              {new Date(post.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              <div className="text-[10px] text-white/70">{new Date(post.created_at).toLocaleDateString()}</div>
+                            </div>
+
+                            <div className="max-w-xl">
+                              <KudosCard
+                                post={post}
+                                index={idx}
+                                theme={currentBoard.theme}
+                                isCreator={isCreator}
+                                onToggleReaction={(emoji) => handleToggleReaction(post.id, emoji)}
+                                onDeletePost={() => handleDeletePost(post.id)}
+                                onAddReply={(text, author) => handleAddReply(post.id, text, author)}
+                                onDeleteReply={(repId) => handleDeleteReply(repId)}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Print Only Footer */}
+                <div className="hidden print:block print-footer">
+                  <p>Preserved forever on KudosBoard • Shared with love</p>
+                </div>
+
+              </main>
+
+              {/* Floating Action Button for No-Login Guests */}
+              <div className="no-print fixed bottom-6 right-6 z-30">
+                <button
+                  onClick={() => setShowAddModal(true)}
+                  disabled={currentBoard.is_locked}
+                  title="Add your celebration message"
+                  className={`px-5 py-3 rounded-full font-bold shadow-2xl flex items-center gap-2 transition-transform transform hover:scale-105 active:scale-95 ${
+                    currentBoard.is_locked
+                      ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-pink-500 via-rose-500 to-amber-500 text-white'
+                  }`}
+                >
+                  <span className="text-xl">✍️</span>
+                  <span className="font-bold tracking-wide">Add a Note</span>
+                </button>
+              </div>
+
+              {/* Slideshow Presentation Mode Overlay */}
+              {layoutMode === 'slideshow' && (
+                <SlideshowModal
+                  posts={boardPosts}
+                  boardTitle={currentBoard.title}
+                  onClose={() => setLayoutMode('grid')}
+                />
+              )}
+
+            </div>
+          )}
+
+          {/* ADD KUDOS MODAL (Guest Composer with Inspiration Generator & Attachments) */}
+          {showAddModal && (
+            <AddKudosModal
+              isCreator={isCreator}
+              creatorSession={creatorSession}
+              onClose={() => setShowAddModal(false)}
+              onSubmit={handleAddPost}
+            />
+          )}
+
+          {/* CREATOR AUTH MODAL */}
+          {showAuthModal && (
+            <CreatorAuthModal
+              onClose={() => setShowAuthModal(false)}
+              onLogin={(session) => {
+                setCreatorSession(session);
+                setShowAuthModal(false);
+                showNotification(`Welcome back, ${session.email}! 👑`);
+              }}
+            />
+          )}
+
+          {/* CREATE NEW BOARD MODAL */}
+          {showNewBoardModal && (
+            <CreateBoardModal
+              creatorSession={creatorSession}
+              onClose={() => setShowNewBoardModal(false)}
+              onCreate={(newBoard) => {
+                const newDb = { ...db, boards: [newBoard, ...db.boards] };
+                saveDB(newDb);
+                setDb(newDb);
+                setActiveSlug(newBoard.share_slug);
+                setCurrentRoute('board');
+                window.location.hash = `#/board/${newBoard.share_slug}`;
+                setShowNewBoardModal(false);
+                showNotification('New board created! 🎈');
+              }}
+            />
+          )}
+
+          {/* SUPABASE CONFIG MODAL */}
+          {showSupabaseModal && (
+            <SupabaseConfigModal
+              supabaseClient={supabaseClient}
+              onClose={() => setShowSupabaseModal(false)}
+              onConnect={(client, cfg) => {
+                setSupabaseClient(client);
+                localStorage.setItem('kudosboard_supabase_config', JSON.stringify(cfg));
+                setShowSupabaseModal(false);
+                showNotification('Connected to remote Supabase database! ⚡');
+              }}
+              onDisconnect={() => {
+                setSupabaseClient(null);
+                localStorage.removeItem('kudosboard_supabase_config');
+                setShowSupabaseModal(false);
+                showNotification('Switched back to local real-time engine.');
+              }}
+            />
+          )}
+
+          {/* Global Footer */}
+          <footer className="no-print bg-slate-900 text-slate-400 text-xs py-4 px-4 border-t border-slate-800">
+            <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div>
+                <span className="text-slate-300 font-semibold">KudosBoard</span> • Real-Time Celebration & Appreciation Wall
+              </div>
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={handleResetDemoData}
+                  className="text-slate-500 hover:text-amber-400 transition underline"
+                >
+                  Reset Demo Sample Boards
+                </button>
+                <span>Built for Google Antigravity</span>
+              </div>
+            </div>
+          </footer>
+
+        </div>
+      );
+    }
+
+    // ====================================================================
+    // COMPONENT: KudosCard (Sticky Note with Reactions & Sub-Threads)
+    // ====================================================================
+
+    function KudosCard({ post, index, theme, isCreator, onToggleReaction, onDeletePost, onAddReply, onDeleteReply }) {
+      const [showReplies, setShowReplies] = useState(false);
+      const [replyText, setReplyText] = useState('');
+      const [replyAuthor, setReplyAuthor] = useState('');
+      const [showReactionPicker, setShowReactionPicker] = useState(false);
+
+      const color = NOTE_COLORS[post.color_id] || NOTE_COLORS.lemon;
+      const sticker = STICKERS.find(s => s.id === post.sticker_id);
+
+      // Alternating tilts for organic corkboard feel
+      const tiltClass = theme === 'corkboard' 
+        ? (index % 4 === 0 ? 'tilt-left' : index % 4 === 1 ? 'tilt-right' : index % 4 === 2 ? 'tilt-left-sm' : 'tilt-right-sm')
+        : '';
+
+      const handleReplySubmit = (e) => {
+        e.preventDefault();
+        if (!replyText.trim()) return;
+        onAddReply(replyText, replyAuthor);
+        setReplyText('');
+      };
+
+      return (
+        <div
+          className={`kudos-card break-inside-avoid relative p-5 transition-all duration-300 ${tiltClass}`}
+          style={{
+            backgroundColor: color.hex,
+            color: color.text,
+            borderColor: color.border
+          }}
+        >
+          {/* Corkboard Pushpin Graphic */}
+          {theme === 'corkboard' && <div className="pushpin-head"></div>}
+
+          {/* Top Bar: Corner Accent Emoji, Author & Creator Moderation Delete */}
+          <div className="flex items-start justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2">
+              <span className="text-2xl" role="img" aria-label="accent">
+                {post.accent_emoji || '🎉'}
+              </span>
+              <div>
+                <div className="font-extrabold text-base leading-tight tracking-tight">
+                  {post.is_anonymous ? 'Anonymous' : (post.author_name || 'Guest')}
+                </div>
+                <div className="text-[10px] opacity-70">
+                  {new Date(post.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                </div>
+              </div>
+            </div>
+
+            {/* Creator Moderation Delete Button */}
+            {isCreator && (
+              <button
+                onClick={onDeletePost}
+                title="Moderate / Delete this note (Creator Only)"
+                className="no-print p-1 rounded hover:bg-black/10 text-rose-700/80 hover:text-rose-900 transition opacity-60 hover:opacity-100"
+              >
+                🗑️
+              </button>
+            )}
+          </div>
+
+          {/* Photo Attachment if present */}
+          {post.photo_url && (
+            <div className="mb-3 rounded-lg overflow-hidden border border-black/10 shadow-sm bg-black/5">
+              <img
+                src={post.photo_url}
+                alt="Celebration attachment"
+                className="w-full max-h-56 object-cover hover:scale-105 transition-transform duration-300"
+                loading="lazy"
+              />
+            </div>
+          )}
+
+          {/* Animated Celebration Sticker if selected */}
+          {sticker && (
+            <div className="mb-2 flex items-center gap-1.5 px-2.5 py-1 bg-black/5 rounded-full w-max text-xs font-semibold">
+              <span className="text-lg animate-bounce">{sticker.emoji}</span>
+              <span>{sticker.label}</span>
+            </div>
+          )}
+
+          {/* Note Message Text */}
+          <p className="text-base sm:text-lg leading-relaxed whitespace-pre-line font-medium mb-4 select-text">
+            {post.message}
+          </p>
+
+          {/* Bottom Card Chrome: Emoji Reactions & Reply Count */}
+          <div className="no-print pt-3 border-t border-black/10 flex flex-wrap items-center justify-between gap-2 text-xs">
+            
+            {/* Reaction Pills */}
+            <div className="flex flex-wrap items-center gap-1">
+              {ALLOWED_REACTIONS.map((emoji) => {
+                const count = post.reactions?.[emoji] || 0;
+                const hasReacted = post.user_reacted?.[emoji];
+                if (count === 0 && !hasReacted) return null;
+                return (
+                  <button
+                    key={emoji}
+                    onClick={() => onToggleReaction(emoji)}
+                    className={`px-2 py-0.5 rounded-full font-bold flex items-center gap-1 border transition-transform transform active:scale-90 ${
+                      hasReacted
+                        ? 'bg-amber-400/40 border-amber-600/50 text-black shadow-xs font-extrabold'
+                        : 'bg-black/5 border-black/10 hover:bg-black/10'
+                    }`}
+                  >
+                    <span>{emoji}</span>
+                    <span className="text-[11px]">{count}</span>
+                  </button>
+                );
+              })}
+
+              {/* Add Reaction Button */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowReactionPicker(!showReactionPicker)}
+                  className="px-2 py-0.5 rounded-full bg-black/5 hover:bg-black/10 border border-black/10 text-xs font-semibold transition"
+                  title="Add reaction"
+                >
+                  + 😊
+                </button>
+
+                {showReactionPicker && (
+                  <div className="absolute bottom-7 left-0 z-20 bg-white/95 backdrop-blur-md rounded-xl p-1.5 shadow-2xl border border-slate-200 flex items-center gap-1">
+                    {ALLOWED_REACTIONS.map(emoji => (
+                      <button
+                        key={emoji}
+                        onClick={() => {
+                          onToggleReaction(emoji);
+                          setShowReactionPicker(false);
+                        }}
+                        className="p-1.5 hover:bg-slate-100 rounded-lg text-lg transition transform hover:scale-125"
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Replies Toggle */}
+            <button
+              onClick={() => setShowReplies(!showReplies)}
+              className="text-[11px] font-semibold opacity-75 hover:opacity-100 transition flex items-center gap-1"
+            >
+              <span>💬 {post.replies?.length || 0} Replies</span>
+            </button>
+          </div>
+
+          {/* Sub-Thread Replies Drawer */}
+          {showReplies && (
+            <div className="no-print mt-3 pt-3 border-t border-black/10 space-y-2 text-xs">
+              {post.replies && post.replies.length > 0 ? (
+                <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                  {post.replies.map((rep) => (
+                    <div key={rep.id} className="bg-black/5 rounded-lg p-2 flex items-start justify-between gap-2">
+                      <div>
+                        <div className="flex items-center gap-1 font-bold">
+                          <span>{rep.author_name}</span>
+                          {rep.is_creator && (
+                            <span className="bg-amber-400 text-slate-950 px-1.5 py-0.2 rounded text-[9px]">👑 Creator</span>
+                          )}
+                        </div>
+                        <p className="mt-0.5 text-slate-800 font-normal">{rep.reply_text}</p>
+                      </div>
+                      {isCreator && (
+                        <button
+                          onClick={() => onDeleteReply(rep.id)}
+                          title="Delete reply (Creator)"
+                          className="text-rose-700 hover:text-rose-950 p-0.5"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[11px] opacity-70 italic">No replies yet. Be the first to reply!</p>
+              )}
+
+              {/* Add Reply Input */}
+              <form onSubmit={handleReplySubmit} className="flex gap-1.5 mt-2">
+                <input
+                  type="text"
+                  placeholder={isCreator ? "Reply as Creator..." : "Write a quick reply..."}
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  className="flex-1 bg-white/80 focus:bg-white rounded px-2.5 py-1 text-xs border border-black/15 focus:outline-none focus:border-black/40 text-slate-900"
+                />
+                <button
+                  type="submit"
+                  className="px-2.5 py-1 bg-black/80 hover:bg-black text-white rounded text-xs font-semibold"
+                >
+                  Send
+                </button>
+              </form>
+            </div>
+          )}
+
+        </div>
+      );
+    }
+
+    // ====================================================================
+    // COMPONENT: AddKudosModal (Guest Composer with Inspiration Prompts)
+    // ====================================================================
+
+    function AddKudosModal({ isCreator, creatorSession, onClose, onSubmit }) {
+      const [authorName, setAuthorName] = useState(isCreator ? (creatorSession?.email?.split('@')[0] || 'Board Creator') : '');
+      const [isAnonymous, setIsAnonymous] = useState(false);
+      const [message, setMessage] = useState('');
+      const [selectedColor, setSelectedColor] = useState('lemon');
+      const [selectedEmoji, setSelectedEmoji] = useState('🎉');
+      const [selectedSticker, setSelectedSticker] = useState('none');
+      const [activeTab, setActiveTab] = useState('stickers'); // 'stickers' | 'photo'
+      const [photoUrl, setPhotoUrl] = useState('');
+      const [filePreview, setFilePreview] = useState(null);
+
+      // Handle custom file upload with canvas compression
+      const handleFileUpload = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const img = new Image();
+          img.onload = () => {
+            // Compress on canvas to max 1000px
+            const maxDim = 900;
+            let width = img.width;
+            let height = img.height;
+            if (width > height && width > maxDim) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else if (height > maxDim) {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            const compressed = canvas.toDataURL('image/jpeg', 0.85);
+            setFilePreview(compressed);
+            setPhotoUrl(compressed);
+          };
+          img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+      };
+
+      const handleInspireMe = () => {
+        const randomPrompt = INSPIRATION_PROMPTS[Math.floor(Math.random() * INSPIRATION_PROMPTS.length)];
+        setMessage(randomPrompt);
+      };
+
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!message.trim()) {
+          alert('Please write a message before posting!');
+          return;
+        }
+        onSubmit({
+          author_name: authorName,
+          is_anonymous: isAnonymous,
+          message,
+          color_id: selectedColor,
+          accent_emoji: selectedEmoji,
+          sticker_id: selectedSticker,
+          photo_url: photoUrl || null
+        });
+      };
+
+      return (
+        <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-100 overflow-hidden my-8 animate-float">
+            
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-amber-500 via-pink-500 to-purple-500 p-4 text-white flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-extrabold flex items-center gap-2">
+                  <span>✍️</span> Leave a Celebration Note
+                </h3>
+                <p className="text-xs text-white/90">Zero login needed — write, decorate, and celebrate!</p>
+              </div>
+              <button
+                onClick={onClose}
+                className="w-8 h-8 rounded-full bg-black/20 hover:bg-black/30 flex items-center justify-center text-sm font-bold transition"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="p-6 space-y-4 text-slate-800 text-sm">
+              
+              {/* Author & Anonymous Toggle */}
+              <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+                <div className="flex-1 w-full">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Your Name</label>
+                  <input
+                    type="text"
+                    disabled={isAnonymous}
+                    value={isAnonymous ? 'Anonymous Contributor' : authorName}
+                    onChange={(e) => setAuthorName(e.target.value)}
+                    placeholder="e.g. Jordan Cooper"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-amber-500 text-sm disabled:bg-slate-100 disabled:text-slate-500"
+                  />
+                </div>
+
+                <div className="pt-2 sm:pt-5">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-600 select-none">
+                    <input
+                      type="checkbox"
+                      checked={isAnonymous}
+                      onChange={(e) => setIsAnonymous(e.target.checked)}
+                      className="rounded text-amber-500 focus:ring-amber-400 w-4 h-4 cursor-pointer"
+                    />
+                    <span>Post Anonymously</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Message Textarea + Inspiration Generator */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-bold text-slate-700">Your Celebration Message</label>
+                  <button
+                    type="button"
+                    onClick={handleInspireMe}
+                    className="text-xs text-pink-600 hover:text-pink-700 font-bold flex items-center gap-1 hover:underline"
+                  >
+                    <span>💡 Need inspiration?</span>
+                  </button>
+                </div>
+                <textarea
+                  required
+                  rows={4}
+                  maxLength={1000}
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  placeholder="Share your favorite memory, warm congratulations, or heartfelt wishes..."
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-amber-500 text-sm leading-relaxed"
+                ></textarea>
+                <div className="text-right text-[11px] text-slate-400">{message.length}/1000 characters</div>
+              </div>
+
+              {/* Sticky Note Color Swatches (6 colors) */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">Note Pastel Color</label>
+                <div className="grid grid-cols-6 gap-2">
+                  {Object.values(NOTE_COLORS).map(color => (
+                    <button
+                      key={color.id}
+                      type="button"
+                      onClick={() => setSelectedColor(color.id)}
+                      className={`h-9 rounded-lg border-2 transition-all flex items-center justify-center font-bold text-xs ${
+                        selectedColor === color.id ? 'border-slate-800 scale-105 shadow-md' : 'border-slate-200 hover:scale-102'
+                      }`}
+                      style={{ backgroundColor: color.hex, color: color.text }}
+                    >
+                      {selectedColor === color.id ? '✓' : ''}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Corner Accent Emoji */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">Corner Accent Emoji</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {ACCENT_EMOJIS.map(emoji => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => setSelectedEmoji(emoji)}
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center text-lg transition ${
+                        selectedEmoji === emoji ? 'bg-amber-100 border-2 border-amber-500 scale-110 shadow-xs' : 'bg-slate-100 hover:bg-slate-200 border border-slate-200'
+                      }`}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Attachments: Animated Stickers vs Photo Upload */}
+              <div className="border border-slate-200 rounded-xl p-3 bg-slate-50/70">
+                <div className="flex border-b border-slate-200 pb-2 mb-3 gap-3 text-xs font-bold">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('stickers')}
+                    className={`pb-1 border-b-2 transition ${
+                      activeTab === 'stickers' ? 'border-amber-500 text-amber-600' : 'border-transparent text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    🎉 Animated Stickers
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('photo')}
+                    className={`pb-1 border-b-2 transition ${
+                      activeTab === 'photo' ? 'border-amber-500 text-amber-600' : 'border-transparent text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    📸 Attach Photo
+                  </button>
+                </div>
+
+                {/* Tab 1: Stickers */}
+                {activeTab === 'stickers' && (
+                  <div className="grid grid-cols-5 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedSticker('none')}
+                      className={`p-2 rounded-lg text-xs font-medium border text-center transition ${
+                        selectedSticker === 'none' ? 'bg-amber-100 border-amber-500 text-amber-900 font-bold' : 'bg-white border-slate-200'
+                      }`}
+                    >
+                      None
+                    </button>
+                    {STICKERS.map(st => (
+                      <button
+                        key={st.id}
+                        type="button"
+                        onClick={() => setSelectedSticker(st.id)}
+                        className={`p-1.5 rounded-lg text-xs border text-center transition flex flex-col items-center gap-0.5 ${
+                          selectedSticker === st.id ? 'bg-amber-100 border-amber-500 shadow-sm font-bold' : 'bg-white border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        <span className="text-xl animate-bounce">{st.emoji}</span>
+                        <span className="text-[10px] truncate max-w-[45px]">{st.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Tab 2: Photos */}
+                {activeTab === 'photo' && (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">Upload Photo from Device (Auto-compressed)</label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileUpload}
+                        className="block w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-amber-500 file:text-white hover:file:bg-amber-600 cursor-pointer"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">Or choose a preset celebratory photo</label>
+                      <div className="grid grid-cols-5 gap-1.5">
+                        {PRESET_PHOTOS.map(p => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => {
+                              setPhotoUrl(p.url);
+                              setFilePreview(p.url);
+                            }}
+                            className={`rounded-lg overflow-hidden border-2 h-12 relative transition ${
+                              photoUrl === p.url ? 'border-amber-500 scale-105 shadow-md' : 'border-transparent'
+                            }`}
+                          >
+                            <img src={p.url} alt={p.label} className="w-full h-full object-cover" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {filePreview && (
+                      <div className="flex items-center gap-3 bg-white p-2 rounded-lg border border-slate-200">
+                        <img src={filePreview} alt="Preview" className="w-12 h-12 object-cover rounded" />
+                        <div className="flex-1 text-xs truncate">Attached Photo Selected</div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPhotoUrl('');
+                            setFilePreview(null);
+                          }}
+                          className="text-rose-600 text-xs font-bold hover:underline"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+              </div>
+
+              {/* Submit Buttons */}
+              <div className="pt-2 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2 rounded-lg text-xs font-bold bg-gradient-to-r from-amber-500 to-pink-500 hover:from-amber-600 hover:to-pink-600 text-white shadow-lg shadow-pink-200 transition"
+                >
+                  Post Kudos Note 🎉
+                </button>
+              </div>
+
+            </form>
+
+          </div>
+        </div>
+      );
+    }
+
+    // ====================================================================
+    // COMPONENT: SlideshowModal (Presentation Mode with Confetti & Auto-play)
+    // ====================================================================
+
+    function SlideshowModal({ posts, boardTitle, onClose }) {
+      const [currentIndex, setCurrentIndex] = useState(0);
+      const [isAutoPlay, setIsAutoPlay] = useState(false);
+      const [progress, setProgress] = useState(0);
+
+      const post = posts[currentIndex] || posts[0];
+      const color = NOTE_COLORS[post?.color_id] || NOTE_COLORS.lemon;
+      const sticker = STICKERS.find(s => s.id === post?.sticker_id);
+
+      const triggerConfetti = () => {
+        if (window.confetti) {
+          window.confetti({ particleCount: 90, spread: 80, origin: { y: 0.6 } });
+        }
+      };
+
+      const handleNext = useCallback(() => {
+        setCurrentIndex(prev => (prev + 1) % posts.length);
+        setProgress(0);
+      }, [posts.length]);
+
+      const handlePrev = useCallback(() => {
+        setCurrentIndex(prev => (prev - 1 + posts.length) % posts.length);
+        setProgress(0);
+      }, [posts.length]);
+
+      // Keyboard navigation
+      useEffect(() => {
+        const handleKeyDown = (e) => {
+          if (e.key === 'ArrowRight' || e.key === ' ') {
+            handleNext();
+          } else if (e.key === 'ArrowLeft') {
+            handlePrev();
+          } else if (e.key === 'Escape') {
+            onClose();
+          }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+      }, [handleNext, handlePrev, onClose]);
+
+      // Auto-Play 4.5 seconds timer with progress bar
+      useEffect(() => {
+        if (!isAutoPlay) {
+          setProgress(0);
+          return;
+        }
+
+        const interval = 50; // update every 50ms
+        const step = (interval / 4500) * 100;
+
+        const timer = setInterval(() => {
+          setProgress(prev => {
+            if (prev >= 100) {
+              handleNext();
+              return 0;
+            }
+            return prev + step;
+          });
+        }, interval);
+
+        return () => clearInterval(timer);
+      }, [isAutoPlay, handleNext]);
+
+      if (!post) return null;
+
+      return (
+        <div className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-xl flex flex-col justify-between text-white p-6 sm:p-10 select-none animate-fadeIn">
+          
+          {/* Top Bar: Title, Slide Index & Controls */}
+          <div className="flex items-center justify-between gap-4 border-b border-slate-800 pb-4">
+            <div>
+              <span className="text-xs font-bold text-amber-400 uppercase tracking-widest">Presentation Mode</span>
+              <h2 className="text-xl sm:text-2xl font-bold truncate max-w-md">{boardTitle}</h2>
+            </div>
+
+            <div className="flex items-center gap-3">
+              {/* Confetti Trigger */}
+              <button
+                onClick={triggerConfetti}
+                className="px-3 py-1.5 rounded-lg bg-pink-600 hover:bg-pink-500 font-bold text-xs flex items-center gap-1 shadow-lg shadow-pink-600/30 transition"
+              >
+                <span>🎉 Confetti Burst</span>
+              </button>
+
+              {/* Auto Play Toggle */}
+              <button
+                onClick={() => setIsAutoPlay(!isAutoPlay)}
+                className={`px-3 py-1.5 rounded-lg font-bold text-xs border transition flex items-center gap-1 ${
+                  isAutoPlay
+                    ? 'bg-amber-400 text-slate-950 border-amber-300'
+                    : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+                }`}
+              >
+                <span>{isAutoPlay ? '⏸️ Auto-Playing (4.5s)' : '▶️ Auto-Play'}</span>
+              </button>
+
+              {/* Close Button */}
+              <button
+                onClick={onClose}
+                className="w-9 h-9 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center font-bold text-sm text-slate-300 hover:text-white transition"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+
+          {/* Auto-Play Progress Bar */}
+          {isAutoPlay && (
+            <div className="w-full bg-slate-800 h-1 rounded-full overflow-hidden -mt-4">
+              <div
+                className="bg-amber-400 h-full transition-all duration-75"
+                style={{ width: `${progress}%` }}
+              ></div>
+            </div>
+          )}
+
+          {/* Central Hero Stage */}
+          <div className="flex-1 flex items-center justify-center py-6 max-w-4xl mx-auto w-full">
+            <div
+              className="w-full rounded-3xl p-8 sm:p-12 shadow-2xl border-4 border-white/20 transition-all duration-500 transform hover:scale-[1.01]"
+              style={{
+                backgroundColor: color.hex,
+                color: color.text,
+                borderColor: color.border
+              }}
+            >
+              <div className="flex flex-col md:flex-row items-center gap-8">
+                
+                {/* Photo attachment if available */}
+                {post.photo_url && (
+                  <div className="w-full md:w-1/2 max-h-80 rounded-2xl overflow-hidden shadow-lg border-2 border-black/10">
+                    <img src={post.photo_url} alt="Celebration" className="w-full h-full object-cover" />
+                  </div>
+                )}
+
+                <div className={`w-full ${post.photo_url ? 'md:w-1/2' : 'max-w-2xl mx-auto text-center'}`}>
+                  
+                  {/* Badge & Sticker */}
+                  <div className="flex items-center gap-2 mb-4 justify-start">
+                    <span className="text-3xl">{post.accent_emoji || '🎉'}</span>
+                    {sticker && (
+                      <span className="text-sm px-3 py-1 bg-black/10 rounded-full font-bold flex items-center gap-1">
+                        <span className="animate-bounce">{sticker.emoji}</span> {sticker.label}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Message */}
+                  <p className="text-2xl sm:text-3xl md:text-4xl font-extrabold leading-snug mb-6 whitespace-pre-line font-serif">
+                    “{post.message}”
+                  </p>
+
+                  {/* Author */}
+                  <div className="text-lg font-bold opacity-90">
+                    — {post.is_anonymous ? 'Anonymous Friend' : post.author_name}
+                  </div>
+                  <div className="text-xs opacity-60 mt-1">
+                    {new Date(post.created_at).toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                  </div>
+
+                  {/* Emoji Reactions Pill Bar */}
+                  <div className="mt-6 flex flex-wrap items-center gap-1.5">
+                    {ALLOWED_REACTIONS.map(emoji => {
+                      const count = post.reactions?.[emoji] || 0;
+                      if (!count) return null;
+                      return (
+                        <span key={emoji} className="px-3 py-1 rounded-full bg-black/10 font-bold text-sm flex items-center gap-1">
+                          <span>{emoji}</span> <span>{count}</span>
+                        </span>
+                      );
+                    })}
+                  </div>
+
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom Navigation & Index */}
+          <div className="flex items-center justify-between border-t border-slate-800 pt-4 text-xs text-slate-400">
+            <div>
+              Use <kbd className="px-1.5 py-0.5 bg-slate-800 rounded text-slate-200">←</kbd> and <kbd className="px-1.5 py-0.5 bg-slate-800 rounded text-slate-200">→</kbd> or <kbd className="px-1.5 py-0.5 bg-slate-800 rounded text-slate-200">Space</kbd> to navigate
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handlePrev}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-bold transition"
+              >
+                ← Previous
+              </button>
+              <span className="font-bold text-slate-300">
+                {currentIndex + 1} of {posts.length}
+              </span>
+              <button
+                onClick={handleNext}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-bold transition"
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+
+        </div>
+      );
+    }
+
+    // ====================================================================
+    // COMPONENT: CreatorDashboard (Multi-Board Management)
+    // ====================================================================
+
+    function CreatorDashboard({ db, creatorSession, onOpenAuth, onSelectBoard, onCreateBoard, onDeleteBoard, onToggleLock, onResetData }) {
+      if (!creatorSession) {
+        return (
+          <div className="flex-1 max-w-3xl mx-auto w-full px-4 py-16 text-center">
+            <div className="bg-white rounded-3xl p-10 shadow-xl border border-slate-200">
+              <span className="text-6xl block mb-4">👑</span>
+              <h2 className="text-3xl font-extrabold text-slate-900 mb-2">Creator Ownership & Dashboard</h2>
+              <p className="text-slate-600 text-base max-w-md mx-auto mb-8">
+                Sign in as a Board Creator to manage all your celebration walls, edit titles, switch themes, lock submissions, and moderate contributions.
+              </p>
+              <button
+                onClick={onOpenAuth}
+                className="px-8 py-3 rounded-xl font-bold text-base bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 shadow-lg shadow-amber-500/20 transition"
+              >
+                🔑 Sign In as Creator (Demo or Magic Link)
+              </button>
+            </div>
+          </div>
+        );
+      }
+
+      const ownedBoards = db.boards.filter(b => b.creator_id === creatorSession.creator_id);
+
+      return (
+        <div className="flex-1 max-w-6xl mx-auto w-full px-4 py-8">
+          
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+            <div>
+              <span className="text-xs font-bold text-amber-600 uppercase tracking-wider">Creator Portal</span>
+              <h1 className="text-3xl font-extrabold text-slate-900">Your Celebration Boards</h1>
+              <p className="text-sm text-slate-600 mt-0.5">Logged in as {creatorSession.email} • Full ownership privileges</p>
+            </div>
+
+            <button
+              onClick={onCreateBoard}
+              className="px-5 py-2.5 rounded-xl font-bold text-sm bg-gradient-to-r from-amber-500 to-pink-500 hover:from-amber-600 hover:to-pink-600 text-white shadow-lg shadow-pink-200 transition flex items-center gap-2"
+            >
+              <span>✨ Create New Board</span>
+            </button>
+          </div>
+
+          {/* Boards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {ownedBoards.map(board => {
+              const postsCount = db.kudos_posts.filter(p => p.board_id === board.id).length;
+              const theme = THEMES[board.theme] || THEMES.corkboard;
+
+              return (
+                <div
+                  key={board.id}
+                  className="bg-white rounded-2xl p-6 shadow-md border border-slate-200 hover:shadow-xl transition-all flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-100 font-bold text-slate-700">
+                        {theme.name}
+                      </span>
+                      <button
+                        onClick={() => onToggleLock(board.id, board.is_locked)}
+                        className={`text-xs px-2.5 py-0.5 rounded-full font-bold border transition ${
+                          board.is_locked
+                            ? 'bg-rose-50 text-rose-700 border-rose-300'
+                            : 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                        }`}
+                      >
+                        {board.is_locked ? '🔒 Locked' : '🔓 Unlocked'}
+                      </button>
+                    </div>
+
+                    <h3 className="text-xl font-bold text-slate-900 mb-1">{board.title}</h3>
+                    <p className="text-xs text-slate-500 line-clamp-2 mb-4">{board.subtitle}</p>
+
+                    <div className="flex items-center gap-3 text-xs text-slate-600 bg-slate-50 p-2.5 rounded-xl mb-4">
+                      <div>
+                        <span className="font-bold text-slate-900">{postsCount}</span> Notes
+                      </div>
+                      <div className="w-px h-3 bg-slate-300"></div>
+                      <div className="truncate text-slate-500">
+                        Slug: <span className="font-mono text-slate-700">{board.share_slug}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                    <button
+                      onClick={() => onSelectBoard(board.share_slug)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white transition flex-1 text-center"
+                    >
+                      Open Wall →
+                    </button>
+                    <button
+                      onClick={() => {
+                        const url = `${window.location.origin}${window.location.pathname}#/board/${board.share_slug}`;
+                        navigator.clipboard.writeText(url);
+                        alert('Guest URL copied: ' + url);
+                      }}
+                      title="Copy public guest link"
+                      className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs transition"
+                    >
+                      🔗
+                    </button>
+                    <button
+                      onClick={() => onDeleteBoard(board.id)}
+                      title="Delete board permanently"
+                      className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs transition"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+        </div>
+      );
+    }
+
+    // ====================================================================
+    // COMPONENT: CreatorAuthModal (Magic Link / 1-Click Demo Login)
+    // ====================================================================
+
+    function CreatorAuthModal({ onClose, onLogin }) {
+      const [email, setEmail] = useState('creator@kudosboard.com');
+
+      const handleDemoLogin = (creatorId, demoEmail) => {
+        onLogin({
+          creator_id: creatorId,
+          email: demoEmail,
+          token: 'token_' + Math.random().toString(36).substring(2, 10),
+          logged_in_at: new Date().toISOString()
+        });
+      };
+
+      const handleFormSubmit = (e) => {
+        e.preventDefault();
+        if (!email.trim()) return;
+        onLogin({
+          creator_id: 'creator-' + email.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+          email: email.trim(),
+          token: 'token_' + Math.random().toString(36).substring(2, 10),
+          logged_in_at: new Date().toISOString()
+        });
+      };
+
+      return (
+        <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl p-6 sm:p-8 border border-slate-100">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-3xl">👑</span>
+              <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-sm font-bold">✕</button>
+            </div>
+
+            <h3 className="text-2xl font-extrabold text-slate-900 mb-1">Creator Sign In</h3>
+            <p className="text-xs text-slate-600 mb-6">
+              Access the Creator Ownership Suite to customize, lock, or moderate your boards.
+            </p>
+
+            {/* Instant Demo Accounts */}
+            <div className="space-y-2 mb-6">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">1-Click Demo Sign-in:</span>
+              <button
+                type="button"
+                onClick={() => handleDemoLogin('creator-demo-1', 'alex.creator@company.com')}
+                className="w-full text-left p-3 rounded-xl border border-amber-300 bg-amber-50/70 hover:bg-amber-100/70 transition flex items-center justify-between"
+              >
+                <div>
+                  <div className="font-bold text-xs text-slate-900">Sign in as Alex (Owner of Maya Birthday & Phoenix Launch)</div>
+                  <div className="text-[11px] text-slate-500">alex.creator@company.com</div>
+                </div>
+                <span className="text-amber-600 text-sm font-bold">→</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleDemoLogin('creator-demo-2', 'sarah.lead@design.io')}
+                className="w-full text-left p-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 transition flex items-center justify-between"
+              >
+                <div>
+                  <div className="font-bold text-xs text-slate-900">Sign in as Sarah (Owner of Alex Farewell)</div>
+                  <div className="text-[11px] text-slate-500">sarah.lead@design.io</div>
+                </div>
+                <span className="text-slate-600 text-sm font-bold">→</span>
+              </button>
+            </div>
+
+            {/* Custom Email / Magic Link */}
+            <form onSubmit={handleFormSubmit} className="pt-4 border-t border-slate-100">
+              <label className="block text-xs font-bold text-slate-700 mb-1">Or Sign In with Any Email</label>
+              <div className="flex gap-2">
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="your.email@organization.com"
+                  className="flex-1 px-3 py-2 rounded-lg border border-slate-300 text-xs focus:outline-none focus:border-amber-500"
+                />
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-lg transition"
+                >
+                  Continue
+                </button>
+              </div>
+            </form>
+
+          </div>
+        </div>
+      );
+    }
+
+    // ====================================================================
+    // COMPONENT: CreateBoardModal (New Board Creation)
+    // ====================================================================
+
+    function CreateBoardModal({ creatorSession, onClose, onCreate }) {
+      const [title, setTitle] = useState('');
+      const [subtitle, setSubtitle] = useState('');
+      const [theme, setTheme] = useState('corkboard');
+
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!title.trim()) return;
+
+        const slug = (title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'board') + 
+                     '-' + Math.random().toString(36).substring(2, 6);
+
+        onCreate({
+          id: 'b-' + Math.random().toString(36).substring(2, 9),
+          creator_id: creatorSession.creator_id,
+          share_slug: slug,
+          title: title.trim(),
+          subtitle: subtitle.trim() || 'Leave your warm notes, celebration photos, and stickers below!',
+          theme,
+          default_layout: 'grid',
+          is_locked: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+      };
+
+      return (
+        <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl p-6 sm:p-8 border border-slate-100">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-2xl font-extrabold text-slate-900">Create a New Kudos Board</h3>
+              <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-sm font-bold">✕</button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Board Title</label>
+                <input
+                  type="text"
+                  required
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="e.g. Congratulations Dr. Watson on Tenure! 🎓"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Board Subtitle / Instructions for Guests</label>
+                <input
+                  type="text"
+                  value={subtitle}
+                  onChange={(e) => setSubtitle(e.target.value)}
+                  placeholder="e.g. Leave a heartfelt message and photo for our celebration!"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-2">Select Visual Theme</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {Object.values(THEMES).map(t => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setTheme(t.id)}
+                      className={`p-3 rounded-xl text-left border-2 transition ${
+                        theme === t.id ? 'border-amber-500 bg-amber-50 shadow-sm' : 'border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="font-bold text-slate-900 text-xs">{t.name}</div>
+                      <div className="text-[11px] text-slate-500 mt-0.5">{t.subtitle}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-4 flex items-center justify-end gap-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 rounded-lg text-slate-600 font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2 rounded-lg bg-gradient-to-r from-amber-500 to-pink-500 hover:from-amber-600 hover:to-pink-600 text-white font-bold shadow-md transition"
+                >
+                  Create Board 🎉
+                </button>
+              </div>
+
+            </form>
+          </div>
+        </div>
+      );
+    }
+
+    // ====================================================================
+    // COMPONENT: SupabaseConfigModal (Connect Remote Supabase PostgreSQL)
+    // ====================================================================
+
+    function SupabaseConfigModal({ supabaseClient, onClose, onConnect, onDisconnect }) {
+      const [url, setUrl] = useState(() => {
+        try {
+          const saved = localStorage.getItem('kudosboard_supabase_config');
+          return saved ? (JSON.parse(saved).SUPABASE_URL || '') : (window.KUDOSBOARD_ENV?.SUPABASE_URL || '');
+        } catch (e) { return ''; }
+      });
+      const [anonKey, setAnonKey] = useState(() => {
+        try {
+          const saved = localStorage.getItem('kudosboard_supabase_config');
+          return saved ? (JSON.parse(saved).SUPABASE_ANON_KEY || '') : (window.KUDOSBOARD_ENV?.SUPABASE_ANON_KEY || '');
+        } catch (e) { return ''; }
+      });
+      const [testing, setTesting] = useState(false);
+      const [statusMsg, setStatusMsg] = useState(null);
+
+      const handleTestAndConnect = async (e) => {
+        e.preventDefault();
+        if (!url.trim() || !anonKey.trim()) {
+          setStatusMsg({ type: 'error', text: 'Please provide both your Supabase URL and Anon Key.' });
+          return;
+        }
+
+        if (!window.supabase) {
+          setStatusMsg({ type: 'error', text: 'Supabase JS library not loaded. Check internet connection.' });
+          return;
+        }
+
+        setTesting(true);
+        setStatusMsg({ type: 'info', text: 'Testing connection to Supabase PostgreSQL...' });
+
+        try {
+          const client = window.supabase.createClient(url.trim(), anonKey.trim());
+          const { data, error } = await client.from('boards').select('id').limit(1);
+
+          if (error && error.code === 'PGRST116') {
+            setStatusMsg({
+              type: 'warning',
+              text: 'Connected to Supabase! However, the "boards" table was not found. Please execute the SQL migration script (supabase/migrations/001_init_kudos_schema.sql) in your Supabase SQL editor.'
+            });
+            onConnect(client, { SUPABASE_URL: url.trim(), SUPABASE_ANON_KEY: anonKey.trim() });
+          } else if (error && error.message) {
+            if (error.message.includes('relation "public.boards" does not exist')) {
+              setStatusMsg({
+                type: 'warning',
+                text: 'Connected to Supabase! Please run the 001_init_kudos_schema.sql script in your Supabase SQL Editor to initialize the tables.'
+              });
+              onConnect(client, { SUPABASE_URL: url.trim(), SUPABASE_ANON_KEY: anonKey.trim() });
+            } else {
+              setStatusMsg({ type: 'error', text: 'Connection failed: ' + error.message });
+            }
+          } else {
+            setStatusMsg({ type: 'success', text: 'Successfully connected to remote Supabase PostgreSQL database!' });
+            setTimeout(() => {
+              onConnect(client, { SUPABASE_URL: url.trim(), SUPABASE_ANON_KEY: anonKey.trim() });
+            }, 600);
+          }
+        } catch (err) {
+          setStatusMsg({ type: 'error', text: 'Connection failed: ' + err.message });
+        } finally {
+          setTesting(false);
+        }
+      };
+
+      return (
+        <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl p-6 sm:p-8 border border-slate-100 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <span className="text-3xl">⚡</span>
+                <div>
+                  <h3 className="text-xl font-extrabold text-slate-900">Supabase Database Connection</h3>
+                  <p className="text-xs text-slate-500">Connect your live PostgreSQL database & Realtime WebSockets</p>
+                </div>
+              </div>
+              <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-sm font-bold">✕</button>
+            </div>
+
+            {/* Connection Status Pill */}
+            <div className={`p-3 rounded-xl mb-4 text-xs font-medium flex items-center justify-between ${
+              supabaseClient ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-slate-50 text-slate-700 border border-slate-200'
+            }`}>
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className={`inline-flex h-full w-full rounded-full ${supabaseClient ? 'bg-emerald-500 animate-ping' : 'bg-slate-400'}`}></span>
+                </span>
+                <span>{supabaseClient ? 'Status: Connected to Supabase PostgreSQL' : 'Status: Using Local Realtime Engine (BroadcastChannel)'}</span>
+              </div>
+              {supabaseClient && (
+                <button
+                  onClick={onDisconnect}
+                  className="text-rose-600 font-bold hover:underline"
+                >
+                  Disconnect
+                </button>
+              )}
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleTestAndConnect} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Supabase Project URL</label>
+                <input
+                  type="url"
+                  required
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  placeholder="https://your-project-id.supabase.co"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 font-mono text-xs focus:outline-none focus:border-amber-500 text-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Supabase Anon Public API Key</label>
+                <input
+                  type="password"
+                  required
+                  value={anonKey}
+                  onChange={(e) => setAnonKey(e.target.value)}
+                  placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 font-mono text-xs focus:outline-none focus:border-amber-500 text-slate-900"
+                />
+                <span className="text-[10px] text-slate-400 block mt-1">Found in: Supabase Dashboard → Project Settings → API → Project API Keys</span>
+              </div>
+
+              {statusMsg && (
+                <div className={`p-3 rounded-xl text-xs font-medium ${
+                  statusMsg.type === 'error' ? 'bg-rose-50 text-rose-800 border border-rose-200' :
+                  statusMsg.type === 'warning' ? 'bg-amber-50 text-amber-800 border border-amber-200' :
+                  statusMsg.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' :
+                  'bg-blue-50 text-blue-800 border border-blue-200'
+                }`}>
+                  {statusMsg.text}
+                </div>
+              )}
+
+              {/* Instructions Callout */}
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-slate-600 space-y-1.5 text-[11px]">
+                <div className="font-bold text-slate-800 text-xs">📋 Setup Checklist:</div>
+                <div>1. In Supabase Dashboard, go to <b>SQL Editor</b>.</div>
+                <div>2. Run <code>supabase/migrations/001_init_kudos_schema.sql</code> to create all 4 tables with RLS and Realtime.</div>
+                <div>3. Paste your URL and Anon Key above and click <b>Connect</b>.</div>
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 rounded-lg text-slate-600 font-semibold"
+                >
+                  Close
+                </button>
+                <button
+                  type="submit"
+                  disabled={testing}
+                  className="px-6 py-2 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold shadow-md transition disabled:opacity-50"
+                >
+                  {testing ? 'Testing...' : 'Test & Connect'}
+                </button>
+              </div>
+            </form>
+
+          </div>
+        </div>
+      );
+    }
+
+    // Mount React App
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>

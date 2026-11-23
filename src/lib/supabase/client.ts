@@ -1,0 +1,52 @@
+// ====================================================================
+// KudosBoard — Supabase Client & Realtime Subscription Adapter
+// ====================================================================
+
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+
+export const supabase = (supabaseUrl && supabaseAnonKey)
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null;
+
+/**
+ * Hook or helper to subscribe to Postgres Changes for a board
+ * When Supabase environment variables are provided, this establishes
+ * live WebSocket replication directly to PostgreSQL.
+ */
+export function subscribeToSupabaseBoard(boardId: string, onEvent: (payload: any) => void) {
+  if (!supabase) return () => {};
+
+  const channel = supabase
+    .channel(`board-room:${boardId}`)
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'boards', filter: `id=eq.${boardId}` },
+      (payload) => onEvent({ type: 'BOARD_UPDATE', payload: payload.new, board_id: boardId })
+    )
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'kudos_posts', filter: `board_id=eq.${boardId}` },
+      (payload) => {
+        if (payload.eventType === 'INSERT') onEvent({ type: 'POST_INSERT', payload: payload.new, board_id: boardId });
+        if (payload.eventType === 'DELETE') onEvent({ type: 'POST_DELETE', payload: payload.old, board_id: boardId });
+      }
+    )
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'kudos_reactions', filter: `board_id=eq.${boardId}` },
+      (payload) => onEvent({ type: 'REACTION_CHANGE', payload, board_id: boardId })
+    )
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'kudos_replies', filter: `board_id=eq.${boardId}` },
+      (payload) => onEvent({ type: 'REPLY_CHANGE', payload, board_id: boardId })
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}

@@ -1,0 +1,11 @@
+{
+  "name": "kudosboard",
+  "version": "1.0.0",
+  "description": "KudosBoard — Real-Time Collaborative Celebration Wall",
+  "scripts": {
+    "start": "npx -y serve -s . -l tcp://0.0.0.0:$PORT"
+  },
+  "keywords": ["celebration", "kudos", "realtime", "bulletin-board"],
+  "author": "KudosBoard Team",
+  "license": "MIT"
+}
