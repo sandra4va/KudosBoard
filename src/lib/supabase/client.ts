@@ -11,8 +11,8 @@ const supabaseAnonKeyEnv = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabaseAnonKeyFinal = supabaseAnonKey || supabaseAnonKeyEnv;
 
 
-export const supabase = (supabaseUrl && supabaseAnonKey)
-  ? createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = (supabaseUrl && supabaseAnonKeyFinal)
+  ? createClient(supabaseUrl, supabaseAnonKeyFinal)
   : null;
 
 /**
